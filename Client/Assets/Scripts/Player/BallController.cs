@@ -18,6 +18,11 @@ public class BallController : MonoBehaviour, IEatable
     private float vomitCooldown = 0.2f;
     private float lastVomitTime = -999f;
     
+    // 分裂相关变量
+    private bool canSplit = true;
+    private float SplitCooldown = 0.2f;
+    private float lastSplitTime = -999f;
+    
     public float Mass
     {
         get => mass;
@@ -42,6 +47,9 @@ public class BallController : MonoBehaviour, IEatable
 
         // 更新吐球间隔
         UpdateVomitCooldown();
+
+        // 更新分裂间隔
+        UpdateSplitCooldown();
     }
     #endregion
     
@@ -94,18 +102,95 @@ public class BallController : MonoBehaviour, IEatable
     /// <param name="direction"></param>
     public void Move(Vector2 direction)
     {
-        float maxMass = 30f;
-        float speedFactor = 1 - Mathf.Pow(Mass / maxMass, 2);
-        speedFactor = Mathf.Max(0, speedFactor);    // 确保非负
+        // 反比例函数 y = k/x 的参数设置
+        float k = 30f;  // 比例系数，可调整，建议20-50之间
+        float minMass = 1f;     // 最小质量，避免初零和极端情况
+        float maxMass = 30f;    //最大质量，避免速度过小
         
+        // 确保质量在合理范围内
+        float clampedMass = Mathf.Clamp(Mass, minMass, maxMass);
+        
+        // 使用反比例函数计算速度因子
+        float speedFactor = k / clampedMass * 0.1f;
+        
+        // 可选：添加最小速度限制，避免质量过大时速过小
+        float minSpeedFactor = 0.1f;    // 最小速度系数
+        speedFactor = Mathf.Max(speedFactor, minSpeedFactor);
+
         float currentSpeed = baseSpeed * speedFactor;
         rb.velocity = direction * currentSpeed;
+    }
+
+    #region 分裂
+
+    private void UpdateSplitCooldown()
+    {
+        if (!canSplit && Time.time > lastSplitTime + SplitCooldown)
+        {
+            canSplit = true;
+        }
     }
     
     public void Split()
     {
+        if (!CanSplit()) return;
         
+        // 设置分裂状态
+        canSplit = false;
+        lastSplitTime = Time.time;
+
+        float splitMass = Mass / 2;
+        Mass = splitMass;
+        Tween.Scale(transform, new Vector3(Mass, Mass, 1), 0.3f);
+        
+        // 创建新球
+        CreateSplitBall(splitMass);
     }
+
+    public void CreateSplitBall(float splitMass)
+    {
+        // 分裂方向                      
+        Vector2 splitDirection = ownerPlayer.GetLastMoveInput();
+        
+        // 分裂出来的球的位置
+        Vector2 newBallPosition = (Vector2)transform.position + splitDirection * (transform.localScale.x / 2 + 0.75f);
+
+        // 新的球
+        BallController newBall = ownerPlayer.CreateBall(newBallPosition);
+        
+        // 设置球的属性
+        newBall.InitBall(splitMass, ownerPlayer);
+        
+        // 给球方向的推力 施加速度
+        newBall.ApplySplitForce(splitDirection);
+        // 给自己一个反方向的推力 施加速度
+        this.ApplySplitForce(splitDirection);
+        
+        ownerPlayer.AddBall(newBall);
+    }
+
+    private void ApplySplitForce(Vector2 direction)
+    {
+        // 分裂力度
+        float splitForce = Mathf.Clamp(8f / Mass, 2f, 8f);
+        rb.AddForce(direction * splitForce, ForceMode2D.Impulse);
+    }
+    
+    private bool CanSplit()
+    {
+        // 在冷却中 不可分裂
+        if (!canSplit) return false;
+        
+        // 最小分裂质量
+        if (Mass < 2f) return false;
+        
+        if (ownerPlayer == null) return false;
+
+        return true;
+    }
+
+    #endregion
+
 
     #region 吐球
 
@@ -175,7 +260,17 @@ public class BallController : MonoBehaviour, IEatable
     
     public void BeEaten(BallController playerBall)
     {
+        if (playerBall != null)
+        {
+            playerBall.AddMass(Mass);
+        }
+
+        if (ownerPlayer != null)
+        {
+            ownerPlayer.DecreaseBall(this);
+        }
         
+        Destroy(gameObject);
     }
 
     /// <summary>

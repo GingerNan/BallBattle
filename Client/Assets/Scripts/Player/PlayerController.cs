@@ -109,7 +109,7 @@ public class PlayerController : MonoSingleton<PlayerController>
     /// 生成新的球
     /// </summary>
     /// <param name="position"></param>
-    private BallController CreateBall(Vector3 position)
+    public BallController CreateBall(Vector2 position)
     {
         GameObject ballObj = Instantiate(ballPrefab, position, Quaternion.identity, fatherObj);
         BallController newBall = ballObj.GetComponent<BallController>();
@@ -119,9 +119,34 @@ public class PlayerController : MonoSingleton<PlayerController>
         
         return newBall;
     }
+
+    /// <summary>
+    /// 向控制链表添加球
+    /// </summary>
+    /// <param name="ball"></param>
+    public void AddBall(BallController ball)
+    {
+        if (!balls.Contains(ball))
+        {
+            balls.Add(ball);
+            ball.ownerPlayer = this;
+        }
+    }
+
+    /// <summary>
+    /// 向控制链表减少球
+    /// </summary>
+    /// <param name="ball"></param>
+    public void DecreaseBall(BallController ball)
+    {
+        if (balls.Contains(ball))
+        {
+            balls.Remove(ball);
+        }
+    }
     
     public Vector2 GetLastMoveInput()
     {
-        return lastInput;
+        return lastInput.normalized;
     }
 }
