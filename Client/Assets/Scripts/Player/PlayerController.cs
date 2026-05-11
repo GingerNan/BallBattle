@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using PrimeTweenDemo;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoSingleton<PlayerController>
 {
     [HideInInspector] public Transform fatherObj;
     [SerializeField] private GameObject ballPrefab;     //自己分裂出来的球
-    List<BallController> balls = new List<BallController>();
+    public List<BallController> balls = new List<BallController>();
 
     public PlayerInput playerInput;
     private Vector2 moveInput;
@@ -28,6 +28,8 @@ public class PlayerController : MonoBehaviour
         };
         
         playerInput.PlayerActions.Move.canceled += input => moveInput = Vector2.zero;
+        playerInput.PlayerActions.Split.performed += input => SplitAllBalls();
+        playerInput.PlayerActions.Vomit.performed += input => VomitBall();
     }
     
     private void Start()
@@ -48,8 +50,6 @@ public class PlayerController : MonoBehaviour
 
         UpdatePlayerPosition();
 
-        // 更新玩家视野大小
-        UpdateCameraFOV();
     }
 
     private void OnDisable()
@@ -60,6 +60,30 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    #region 分裂
+
+    private void SplitAllBalls()
+    {
+        for (int i = balls.Count - 1; i >= 0; i--)
+        {
+            balls[i].Split();
+        }
+    }
+    
+    #endregion
+    
+    #region 吐球
+
+    private void VomitBall()
+    {
+        for (int i = balls.Count - 1; i >= 0; i--)
+        {
+            balls[i].Vomit();
+        }
+    }
+    
+    #endregion
+    
     #region 摄像机追踪
     
     /// <summary>
@@ -78,45 +102,7 @@ public class PlayerController : MonoBehaviour
         center /= balls.Count;
         transform.position = center;
     }
-
-    /// <summary>
-    /// 更新摄像机FOV
-    /// </summary>
-    private void UpdateCameraFOV()
-    {
-        if (balls.Count == 0)
-        {
-            CameraController.Instance.SetTargetFOV(5f);
-            return;
-        }
-
-        float minX = float.MaxValue;
-        float maxX = float.MinValue;
-        float minY = float.MaxValue;
-        float maxY = float.MinValue;
-
-        foreach (var ball in balls)
-        {
-            Vector2 pos = ball.transform.position;
-            float radius = ball.Mass;   // localScale = (Mass, Mass, 1)
-            
-            minX = Mathf.Min(minX, pos.x - radius);
-            maxX = Mathf.Max(maxX, pos.x + radius);
-            minY = Mathf.Min(minY, pos.y - radius);
-            maxY = Mathf.Max(maxY, pos.y + radius);
-        }
-        
-        // 构成的包围盒的范围
-        float width = maxX - minX;
-        float height = maxY - minY;
-        
-        // 目标视野大小
-        float targetSize = Mathf.Max(width, height) / 2 * 3f;
-        targetSize = Mathf.Max(targetSize, 5f);
-        
-        // 更新FOV
-        CameraController.Instance.SetTargetFOV(targetSize);
-    }
+    
     #endregion
     
     /// <summary>
@@ -126,10 +112,16 @@ public class PlayerController : MonoBehaviour
     private BallController CreateBall(Vector3 position)
     {
         GameObject ballObj = Instantiate(ballPrefab, position, Quaternion.identity, fatherObj);
-        BallController ball = ballObj.GetComponent<BallController>();
-        ball.ownerPlayer = this;
-        balls.Add(ball);
+        BallController newBall = ballObj.GetComponent<BallController>();
         
-        return ball;
+        newBall.InitBall(1, this);
+        balls.Add(newBall);
+        
+        return newBall;
+    }
+    
+    public Vector2 GetLastMoveInput()
+    {
+        return lastInput;
     }
 }

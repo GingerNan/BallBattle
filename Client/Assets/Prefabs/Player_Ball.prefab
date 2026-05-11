@@ -188,3 +188,4 @@ MonoBehaviour:
   ownerPlayer: {fileID: 0}
   mass: 1
   baseSpeed: 5
+  foodPrefab: {fileID: 6992381616449904497, guid: 8f6f170fdb334c6479e35c448a4e6598, type: 3}

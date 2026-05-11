@@ -19,6 +19,11 @@ public class CameraController : MonoSingleton<CameraController>
         cam = GetComponent<Camera>();
         currentFOV = cam.orthographicSize;
     }
+
+    private void Start()
+    {
+        EventCenter.Instance.AddEventListener(GameEvent.视野变化, UpdateCameraFOV);
+    }
     
     private void LateUpdate()
     {
@@ -33,6 +38,12 @@ public class CameraController : MonoSingleton<CameraController>
         cam.orthographicSize = currentFOV;
     }
 
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        EventCenter.Instance.RemoveEventListener(GameEvent.视野变化, UpdateCameraFOV);
+    }
+
     /// <summary>
     /// 设置跟随目标
     /// </summary>
@@ -43,11 +54,35 @@ public class CameraController : MonoSingleton<CameraController>
     }
 
     /// <summary>
-    /// 设置目标FOV
+    /// 更新摄像机FOV
     /// </summary>
-    /// <param name="fov"></param>
-    public void SetTargetFOV(float fov)
+    private void UpdateCameraFOV()
     {
-        targetFOV = fov;
+        float minX = float.MaxValue;
+        float maxX = float.MinValue;
+        float minY = float.MaxValue;
+        float maxY = float.MinValue;
+
+        foreach (var ball in PlayerController.Instance.balls)
+        {
+            Vector2 pos = ball.transform.position;
+            float radius = ball.Mass;   // localScale = (Mass, Mass, 1)
+            
+            minX = Mathf.Min(minX, pos.x - radius);
+            maxX = Mathf.Max(maxX, pos.x + radius);
+            minY = Mathf.Min(minY, pos.y - radius);
+            maxY = Mathf.Max(maxY, pos.y + radius);
+        }
+        
+        // 构成的包围盒的范围
+        float width = maxX - minX;
+        float height = maxY - minY;
+        
+        // 目标视野大小
+        float targetSize = Mathf.Max(width, height) / 2 * 3f;
+        targetSize = Mathf.Max(targetSize, 5f);
+        
+        // 更新FOV
+        targetFOV = targetSize;
     }
 }

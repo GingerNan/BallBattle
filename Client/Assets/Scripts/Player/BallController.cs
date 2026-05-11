@@ -8,12 +8,24 @@ public class BallController : MonoBehaviour, IEatable
     public PlayerController ownerPlayer;
     [SerializeField] private float mass = 1f;
     [SerializeField] private float baseSpeed = 5f;
+    
+    [SerializeField] private GameObject foodPrefab;
+    
     private Rigidbody2D rb;
 
+    // 吐球相关变量
+    private bool canVomit = true;
+    private float vomitCooldown = 0.2f;
+    private float lastVomitTime = -999f;
+    
     public float Mass
     {
         get => mass;
-        set => mass = value;
+        set
+        { 
+            mass = value;
+            EventCenter.Instance.EventTrigger(GameEvent.视野变化);
+        } 
     }
     
     #region 生命周期
@@ -25,7 +37,11 @@ public class BallController : MonoBehaviour, IEatable
 
     private void FixedUpdate()
     {
+        // 检测是否能吃食物
         CheckCanEat();
+
+        // 更新吐球间隔
+        UpdateVomitCooldown();
     }
     #endregion
     
@@ -59,6 +75,18 @@ public class BallController : MonoBehaviour, IEatable
             }
         }
     }
+
+    /// <summary>
+    /// 生成球时初始化
+    /// </summary>
+    /// <param name="newMass"></param>
+    /// <param name="owner"></param>
+    public void InitBall(float newMass, PlayerController owner)
+    {
+        this.ownerPlayer = owner;
+        this.Mass = newMass;
+        transform.localScale = new Vector3(newMass, newMass, 1);
+    }
     
     /// <summary>
     /// 对该球进行移动
@@ -74,14 +102,89 @@ public class BallController : MonoBehaviour, IEatable
         rb.velocity = direction * currentSpeed;
     }
     
+    public void Split()
+    {
+        
+    }
+
+    #region 吐球
+
+    private void UpdateVomitCooldown()
+    {
+        if (!canVomit && Time.time - lastVomitTime >= vomitCooldown)
+        {
+            canVomit = true;
+        }
+    }
+    
+    public void Vomit()
+    {
+        if (!CanVomit()) return;
+        
+        // 设置吐球状态
+        canVomit = false;
+        lastVomitTime = Time.time;
+
+        // 吐出来的质量
+        float vomitMass = Mathf.Max(Mass * 0.1f, 0.3f);
+        
+        // 原球质量减少
+        Mass -= vomitMass;
+        Tween.Scale(transform, new Vector3(Mass, Mass, 1), 0.2f);
+
+        // 创建食物球
+        CreateFoodBall(vomitMass);
+    }
+
+    private bool CanVomit()
+    {
+        // 吐球冷却中
+        if (!canVomit) return false;
+
+        // 能够吐球的最小质量
+        if (Mass < 1.5f) return false;
+
+        if (ownerPlayer == null) return false;
+        
+        return true;
+    }
+
+    #endregion
+
+    private void CreateFoodBall(float vomitMass)
+    {
+        // 获取吐球方向
+        Vector2 vomitDirection = ownerPlayer.GetLastMoveInput();
+        
+        // 食物球生成位置 边缘生成
+        Vector2 foodPosition = (Vector2)transform.position + (transform.localScale.x / 2 + 1f) * vomitDirection;
+        
+        // 实例化吐出来球
+        GameObject foodObj = Instantiate(
+            foodPrefab,
+            foodPosition,
+            Quaternion.identity,
+            FoodSpawner.Instance.foodParent.transform
+            );
+        
+        FoodBall foodBall = foodObj.GetComponent<FoodBall>();
+        foodBall.isFromPlayer = true;
+        foodBall.SetMass(vomitMass);
+        foodBall.InitMovement(vomitDirection, 10 * vomitMass, 1f);
+    }
+    
     public void BeEaten(BallController playerBall)
     {
         
     }
 
+    /// <summary>
+    /// 增加该球质量
+    /// </summary>
+    /// <param name="addMass"></param>
     public void AddMass(float addMass)
     {
-        Mass += addMass * 0.3f;
+        Mass += addMass;
         Vector3 targetScale = new Vector3(Mass, Mass, 1);
         Tween.Scale(transform, targetScale, 0.5f);
     }
