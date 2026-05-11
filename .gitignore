@@ -38,8 +38,9 @@ sysinfo.txt
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-*.csproj
-*.sln
+# Unity-generated IDE project files
+Client/*.csproj
+Client/*.sln
 *.suo
 *.user
 *.userprefs
