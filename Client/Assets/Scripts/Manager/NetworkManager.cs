@@ -27,10 +27,25 @@ public class NetworkManager : MonoSingleton<NetworkManager>
             clientSocket.Connect(IPInfo.IP, IPInfo.Port);
             
             Debug.Log("已连接至:" + clientSocket.RemoteEndPoint.ToString());
+            Send("Hello World");
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    private void Send(string msg)
+    {
+        try
+        {
+            byte[] buffer = Encoding.UTF8.GetBytes(msg);
+            clientSocket.Send(buffer);
+        }
+        catch (Exception e)
+        {
+            System.Console.WriteLine(e);
             throw;
         }
     }
