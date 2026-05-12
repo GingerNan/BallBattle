@@ -43,6 +43,17 @@ public class NetworkManager : MonoSingleton<NetworkManager>
         ProcessMessageQueue();
     }
 
+    protected override void OnDestroy()
+    {
+        Disconnect();
+    }
+
+    protected override void OnApplicationQuit()
+    {
+        base.OnApplicationQuit();
+        Disconnect();
+    }
+    
     #endregion
     
     
@@ -89,14 +100,30 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                     // 处理累计缓冲区中的数据
                     ProcessReceiveData();
                 }
+                else
+                {
+                    // 连接关闭
+                    Debug.Log("服务器连接已关闭");
+                    isConnected = false;
+                    break;
+                }
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine($"接受数据异常: {e.Message}");
+                isConnected = false;
+                break;
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Console.WriteLine($"接受数据异常: {e.Message}");
                 isConnected = false;
-                throw;
+                break;
             }
         }
+        
+        Debug.Log("接受线程结束");
+        Disconnect();
     }
 
     /// <summary>
@@ -127,11 +154,40 @@ public class NetworkManager : MonoSingleton<NetworkManager>
         }
         catch (Exception e)
         {
-            System.Console.WriteLine(e);
-            throw;
+            Debug.Log($"发送消息错误: {e.Message}");
+            Disconnect();
         }
     }
 
+    // 断开连接
+    private void Disconnect()
+    {
+        try
+        {
+            isConnected = false;
+            if (clientSocket != null)
+            {
+                if (clientSocket.Connected)
+                {
+                    clientSocket.Shutdown(SocketShutdown.Both);
+                }
+                
+                clientSocket.Close();
+                clientSocket.Dispose();
+                clientSocket = null;
+            }
+
+            receiveThread.Join(1000);   // 等待接受线程结束
+            
+            Debug.Log("与服务器断开连接");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+    
     /// <summary>
     /// 解析消息并传递
     /// </summary>
@@ -139,12 +195,21 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     {
         try
         {
-            while (_receiveBuffer.Count > 4)
+            while (_receiveBuffer.Count >= 4)
             {
+                // 如果还没有解析出消息体长度，先解析消息头
                 if (_expectedBodyLength == -1)
                 {
                     byte[] headBytes = _receiveBuffer.GetRange(0, 4).ToArray();
                     _expectedBodyLength = BitConverter.ToInt32(headBytes, 0);
+                    
+                    // 添加长度验证
+                    if (_expectedBodyLength < 0 || _expectedBodyLength > 10 * 1024 * 1024)  // 限制10MB
+                    {
+                        Debug.Log($"无效的消息长度: {_expectedBodyLength}");
+                        Disconnect();
+                        return;
+                    }
                 }
 
                 // 判断是否是一条完整的消息
@@ -170,8 +235,8 @@ public class NetworkManager : MonoSingleton<NetworkManager>
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
-            throw;
+            Debug.Log($"处理接受数据错误: {e.Message}");
+            Disconnect();
         }
     }
 

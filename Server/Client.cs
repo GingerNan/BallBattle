@@ -51,6 +51,7 @@ namespace Server
                 if (bytesRead <= 0)
                 {
                     // 客户端断开连接
+                    Disconnect();
                     return;
                 }
                 
@@ -103,6 +104,7 @@ namespace Server
             }
         }
 
+        // 发送消息回调
         private void SendCallback(IAsyncResult ar)
         {
             try
@@ -116,6 +118,24 @@ namespace Server
             }
         }
 
+        // 断开连接
+        private void Disconnect()
+        {
+            try
+            {
+                Socket.Shutdown(SocketShutdown.Both);
+                Socket.Close();
+                Program.server.RemoveClient(this);
+                
+                Console.WriteLine($"玩家 {PlayerId} 断开连接");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        
         /// <summary>
         /// 解析消息
         /// </summary>
