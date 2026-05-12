@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -5,6 +6,8 @@ using PrimeTween;
 
 public class BallController : MonoBehaviour, IEatable
 {
+    private string _ballId;
+    
     public PlayerController ownerPlayer;
     [SerializeField] private float mass = 1f;
     [SerializeField] private float baseSpeed = 5f;
@@ -38,6 +41,8 @@ public class BallController : MonoBehaviour, IEatable
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        
+        _ballId = Guid.NewGuid().ToString();
     }
 
     private void FixedUpdate()
@@ -282,5 +287,10 @@ public class BallController : MonoBehaviour, IEatable
         Mass += addMass;
         Vector3 targetScale = new Vector3(Mass, Mass, 1);
         Tween.Scale(transform, targetScale, 0.5f);
+    }
+
+    public string GetBallId()
+    {
+        return _ballId;
     }
 }

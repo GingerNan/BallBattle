@@ -806,6 +806,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerPrefab: {fileID: 3731443871196724063, guid: 704f57c0cccb9c54e97859e650ee7308, type: 3}
+  remotePlayerPrefab: {fileID: 3731443871196724063, guid: 4240f3a6ed4f9ab4dab5d7414047eb9e, type: 3}
 --- !u!4 &1764283584
 Transform:
   m_ObjectHideFlags: 0

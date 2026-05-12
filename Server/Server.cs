@@ -57,6 +57,9 @@ namespace Server
                 Socket clientSocket = serverSocket.EndAccept(ar);
                 Client client = new Client(clientSocket);
                 clients.Add(client);
+
+                // 发送新连接客户端的标识
+                SendClientTheId(client);
                 
                 Console.WriteLine($"有客户端连接上了服务器: {clientSocket.RemoteEndPoint}");
                 
@@ -73,6 +76,21 @@ namespace Server
             }
         }
 
+        // 发送新连接客户端的标识
+        private void SendClientTheId(Client client)
+        {
+            NetworkMessage networkMessage = new NetworkMessage
+            {
+                Type = MessageType.GiveThePlayerId,
+                PlayerId = client.PlayerId,
+            };
+            
+            string jsonMsg = JsonConvert.SerializeObject(networkMessage);
+            client.Send(jsonMsg);
+            
+            Console.WriteLine($"向客户端 {client.PlayerId} 告知ID");
+        }
+        
         // 向该客户端同步食物
         private void SyncAllFoodsToClient(Client client)
         {
@@ -99,7 +117,8 @@ namespace Server
             {
                 if (!foodManager.FoodExists(foodId))
                 {
-                    throw new Exception($"食物{foodId}不存在!");
+                    Console.WriteLine($"食物 {foodId} 不存在, 可能已被吃掉");
+                    return;
                 }
 
                 // 移除旧食物 生成新的食物
@@ -121,7 +140,48 @@ namespace Server
             }
         }
 
+        public void HandlePlayerPosition(Client client)
+        {
+            try
+            {
+                BroadcastPlayerPosition(client);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        
         #region 广播方法
+
+        // 广播单个玩家的位置给其他玩家
+        private void BroadcastPlayerPosition(Client client)
+        {
+            try
+            {
+                var position = new PlayerPositionData()
+                {
+                    PlayerId = client.PlayerId,
+                    Balls = client.Balls,
+                    TotalMass = client.TotalMass,
+                    Position = client.Position,
+                };
+
+                var message = new NetworkMessage()
+                {
+                    Type = MessageType.SyncPositions,
+                    PlayerPosition = position,
+                };
+                
+                BroadcastToOthers(JsonConvert.SerializeObject(message), client);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
 
         private void BroadcastFoodGenerated(FoodData food)
         {
@@ -166,6 +226,27 @@ namespace Server
             }
         }
 
+        private void BroadcastToOthers(string msg, Client sourceClient)
+        {
+            lock (clients)
+            {
+                foreach (var client in clients)
+                {
+                    if (!client.IsConnected || sourceClient == client) continue;
+                    
+                    try
+                    {
+                        client.Send(msg);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        throw;
+                    }
+                }
+            }
+        }
+        
         // 广播消息给所有客户端
         private void Broadcast(string msg)
         {

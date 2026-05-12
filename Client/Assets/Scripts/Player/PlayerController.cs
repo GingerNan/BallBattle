@@ -13,6 +13,13 @@ public class PlayerController : MonoSingleton<PlayerController>
     private Vector2 moveInput;
     private Vector3 lastInput;
     
+    // 网络相关
+    public string PlayerId { get; set; }
+    public bool IsLocalPlayer { get; set; }
+
+    private float positionSendTimer = 0f;
+    private const float POSITION_SEND_INTERVAL = 0.1f;  // 每100毫秒同步一次位置
+    
     private void OnEnable()
     {
         if (playerInput == null)
@@ -50,6 +57,13 @@ public class PlayerController : MonoSingleton<PlayerController>
 
         UpdatePlayerPosition();
 
+        // 定时发送位置给服务器
+        positionSendTimer += Time.deltaTime;
+        if (positionSendTimer >= POSITION_SEND_INTERVAL)
+        {
+            positionSendTimer = 0;
+            SendStateToServer();
+        }
     }
 
     private void OnDisable()
@@ -104,6 +118,12 @@ public class PlayerController : MonoSingleton<PlayerController>
     }
     
     #endregion
+
+    private void SendStateToServer()
+    {
+        Vector2 postion = new Vector2(transform.position.x, transform.position.y);
+        NetworkManager.Instance.SendPlayerPosition(postion, balls);
+    }
     
     /// <summary>
     /// 生成新的球

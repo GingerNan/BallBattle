@@ -41,6 +41,23 @@ namespace Server
         public float Mass { get; set; }
         public string FromPlayerId { get; set; }    // 来源为玩家时使用
     }
+
+    [Serializable]
+    public class BallData
+    {
+        public string BallId { get; set; }
+        public Vector2 Position { get; set; }
+        public float Mass { get; set; }
+    }
+    
+    [Serializable]
+    public class PlayerPositionData
+    {
+        public string PlayerId { get; set; }
+        public Vector2 Position { get; set; }
+        public List<BallData> Balls {get; set;} = new  List<BallData>();
+        public float TotalMass {get; set;}
+    }
     
     [Serializable]
     public class NetworkMessage
@@ -51,6 +68,10 @@ namespace Server
         public string PlayerId { get; set; }
         public Vector2 Position { get; set; }
         public string Data { get; set; }
+        
+        // 同步位置相关
+        public List<PlayerPositionData> PlayerPositions { get; set; }
+        public PlayerPositionData PlayerPosition { get; set; }
         
         // 食物信息
         public List<FoodData> Foods { get; set; }

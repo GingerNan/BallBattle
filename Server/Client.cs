@@ -15,6 +15,10 @@ namespace Server
         private List<byte> _receiveBuffer = new List<byte>();   // 累计接收消息的缓冲区
         private int _expectedBodyLength = -1;   // 期望消息长度
         
+        // 玩家状态信息
+        public Vector2 Position { get; set; } = new Vector2(0, 0);
+        public List<BallData> Balls { get; set; } = new List<BallData>();
+        public float TotalMass { get; set; } = 0;
         
         public Client(Socket socket)
         {
@@ -166,6 +170,10 @@ namespace Server
             switch (networkMessage.Type)
             {
                 case MessageType.PlayerJoin:
+                    HandlePlayerJoin();
+                    break;
+                case MessageType.SendPosition:
+                    HandleSendPosition(networkMessage);
                     break;
                 case MessageType.RemoveFood:
                     HandleRemoveFood(networkMessage.FoodId);
@@ -177,6 +185,32 @@ namespace Server
 
         #region 处理对应消息的方法
 
+        // 玩家初次连接
+        private void HandlePlayerJoin()
+        {
+            var response = new NetworkMessage
+            {
+                Type = MessageType.PlayerJoin,
+                PlayerId = PlayerId,
+            };
+            
+            Send(JsonConvert.SerializeObject(response));
+            Console.WriteLine($"玩家 {PlayerId} 加入游戏");
+        }
+
+        // 处理玩家位置和状态
+        private void HandleSendPosition(NetworkMessage message)
+        {
+            this.Position = message.Position;
+            if (message.Position != null)
+            {
+                this.Balls = message.PlayerPosition.Balls ?? new List<BallData>();
+                this.TotalMass = message.PlayerPosition.TotalMass;
+            }
+            
+            Program.server.HandlePlayerPosition(this);
+        }
+        
         // 处理移除食物
         private void HandleRemoveFood(string foodId)
         {

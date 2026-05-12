@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Server;
 using UnityEngine;
 using Object = System.Object;
+using Vector2 = Server.Vector2;
 
 public class NetworkManager : MonoSingleton<NetworkManager>
 {
@@ -18,6 +19,8 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     
     private Queue<NetworkMessage> messageQueue = new Queue<NetworkMessage>();
     private Object queueLock = new object();
+
+    private string _playerId = "Null";
     
     private List<byte> _receiveBuffer = new List<byte>();
     private int _expectedBodyLength = -1;
@@ -219,6 +222,25 @@ public class NetworkManager : MonoSingleton<NetworkManager>
             switch (message.Type)
             {
                 case MessageType.PlayerJoin:
+                    GameManager.Instance.CreateNewPlayer(message.PlayerId);
+                    break;
+                case MessageType.GiveThePlayerId:
+                    _playerId = message.PlayerId;
+                    GameManager.Instance.CreateNewPlayer(_playerId, true);
+                    Debug.Log($"自己ID是 {_playerId}");
+                    break;
+                case MessageType.SyncPositions:
+                    if (message.PlayerPositions != null)
+                    {
+                        // 同步所有玩家位置
+                        
+                    }
+                    else if (message.PlayerPosition != null)
+                    {
+                        // 同步单玩家的位置
+                        Debug.Log($"同步单个玩家位置: {message.PlayerPosition.PlayerId}");
+                        EventCenter.Instance.EventTrigger<PlayerPositionData>(GameEvent.玩家位置更新, message.PlayerPosition);
+                    }
                     break;
                 case MessageType.PlayerLeave:
                     break;
@@ -229,6 +251,10 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                 case MessageType.GenerateFood:
                     Debug.Log($"收到食物生成消息，食物Id:{message.Food.FoodId}");
                     EventCenter.Instance.EventTrigger<FoodData>(GameEvent.食物生成, message.Food);
+                    break;
+                case MessageType.RemoveFood:
+                    Debug.Log($"收到食物移除消息，食物Id:{message.Food.FoodId}");
+                    EventCenter.Instance.EventTrigger<string>(GameEvent.食物移除, message.FoodId);
                     break;
             }
         }
@@ -263,5 +289,58 @@ public class NetworkManager : MonoSingleton<NetworkManager>
         }
     }
 
+    // 发送自己的位置信息
+    public void SendPlayerPosition(UnityEngine.Vector2 position, List<BallController> balls)
+    {
+        try
+        {
+            List<BallData> ballDataList = new List<BallData>();
+            float totalMass = 0;
+
+            foreach (var ball in balls)
+            {
+                if (ball == null)
+                {
+                    continue;
+                }
+
+                string ballId = ball.GetBallId();
+                ballDataList.Add(new BallData()
+                {
+                    BallId = ballId,
+                    Position = new Vector2(ball.transform.position.x, ball.transform.position.y),
+                    Mass = ball.Mass
+                });
+                totalMass += ball.Mass;
+            }
+
+            var message = new NetworkMessage
+            {
+                Type = MessageType.SendPosition,
+                PlayerId = _playerId,
+                Position = new Vector2(position.x, position.y),
+                PlayerPosition = new PlayerPositionData()
+                {
+                    PlayerId = _playerId,
+                    Balls = ballDataList,
+                    TotalMass = totalMass,
+                    Position = new  Vector2(position.x, position.y),
+                }
+            };
+            
+            Send(JsonConvert.SerializeObject(message));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
     #endregion
+
+    public string GetPlayerId()
+    {
+        return _playerId;
+    }
 }
