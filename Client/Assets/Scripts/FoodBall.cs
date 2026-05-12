@@ -1,9 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
+using Server;
 using UnityEngine;
+using Vector2 = UnityEngine.Vector2;
 
 public class FoodBall : MonoBehaviour, IEatable
 {
+    private string _foodId;
     [SerializeField] private float mass = 0.3f;
     public bool isFromPlayer = false;
     
@@ -24,6 +27,15 @@ public class FoodBall : MonoBehaviour, IEatable
     {
         Mass = newMass;
         transform.localScale = new Vector3(newMass, newMass, 1);
+    }
+
+    /// <summary>
+    /// 初始化ID
+    /// </summary>
+    /// <param name="foodId"></param>
+    public void SetFoodId(string foodId)
+    {
+        _foodId = foodId;
     }
 
     public void InitMovement(Vector2 direction, float speed, float duration)
@@ -73,7 +85,7 @@ public class FoodBall : MonoBehaviour, IEatable
         else
         {
             // 自然生成的食物被吃了，生成新的，维持量在100
-            EventCenter.Instance.EventTrigger(GameEvent.食物移除);
+            EventCenter.Instance.EventTrigger<string>(GameEvent.食物移除, _foodId);
         }
         playerBall.AddMass(this.Mass * missFactor);
         

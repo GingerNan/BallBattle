@@ -30,7 +30,7 @@ namespace Server
             try
             {
                 byte[] buffer = new byte[1024];
-                Socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, ReceiveCallback, buffer.Length);
+                Socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, ReceiveCallback, buffer);
             }
             catch (Exception e)
             {
@@ -44,30 +44,41 @@ namespace Server
             try
             {
                 int bytesRead = Socket.EndReceive(ar);
-                if (bytesRead > 0)
+                if (bytesRead <= 0)
                 {
-                    // 这一次收到的数据
-                    byte[] buffer = ar.AsyncState as byte[];
-                    
-                    byte[] newData = new byte[bytesRead];
-                    Array.Copy(buffer, newData, bytesRead);
-                    _receiveBuffer.AddRange(newData);
-
-                    // 处理累计缓冲区数据
-                    ProcessReceiveData();
-                    
-                    // 接续接受
-                    StartReceiving();
+                    // 客户端断开连接
+                    return;
                 }
+                
+                // 这一次收到的数据
+                byte[] buffer = ar.AsyncState as byte[];
+                if (buffer == null)
+                {
+                    Console.WriteLine("接受缓冲区为空");
+                    return;
+                }
+                
+                byte[] newData = new byte[bytesRead];
+                Array.Copy(buffer, newData, bytesRead);
+                _receiveBuffer.AddRange(newData);
+
+                // 处理累计缓冲区数据
+                ProcessReceiveData();
+                    
+                // 接续接受
+                StartReceiving();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                throw;
+                // throw;   //不建议这里 throw，否则异步回调里的异常会直接导致服务端崩溃
             }
         }
 
-        // 向客户端发送消息
+        /// <summary>
+        /// 向客户端发送消息
+        /// </summary>
+        /// <param name="msg"></param>
         public void Send(string msg)
         {
             try
@@ -108,7 +119,7 @@ namespace Server
         {
             try
             {
-                while (_receiveBuffer.Count > 4)
+                while (_receiveBuffer.Count >= 4)
                 {
                     if (_expectedBodyLength == -1)
                     {
@@ -156,9 +167,23 @@ namespace Server
             {
                 case MessageType.PlayerJoin:
                     break;
+                case MessageType.RemoveFood:
+                    HandleRemoveFood(networkMessage.FoodId);
+                    break;
                 case MessageType.PlayerLeave:
                     break;
             }
         }
+
+        #region 处理对应消息的方法
+
+        // 处理移除食物
+        private void HandleRemoveFood(string foodId)
+        {
+            Console.WriteLine($"移除食物: {foodId}");
+            Program.server.HandleFoodRemove(foodId, this);
+        }
+
+        #endregion
     }
 }

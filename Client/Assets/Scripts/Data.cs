@@ -47,6 +47,11 @@ namespace Server
     {
         public MessageType Type { get; set; }
         
+        // 玩家相关
+        public string PlayerId { get; set; }
+        public Vector2 Position { get; set; }
+        public string Data { get; set; }
+        
         // 食物信息
         public List<FoodData> Foods { get; set; }
         public FoodData Food { get; set; }

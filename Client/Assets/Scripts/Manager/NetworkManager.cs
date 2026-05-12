@@ -2,12 +2,28 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using Newtonsoft.Json;
+using Server;
 using UnityEngine;
+using Object = System.Object;
 
 public class NetworkManager : MonoSingleton<NetworkManager>
 {
     public Socket clientSocket;
     
+    private bool isConnected = false;
+    private Thread receiveThread;
+    
+    private Queue<NetworkMessage> messageQueue = new Queue<NetworkMessage>();
+    private Object queueLock = new object();
+    
+    private List<byte> _receiveBuffer = new List<byte>();
+    private int _expectedBodyLength = -1;
+
+    #region 生命周期
+
     protected override void Awake()
     {
         base.Awake();
@@ -19,15 +35,30 @@ public class NetworkManager : MonoSingleton<NetworkManager>
         Connect();
     }
 
+    private void Update()
+    {
+        ProcessMessageQueue();
+    }
+
+    #endregion
+    
+    
+    /// <summary>
+    /// 初始化连接
+    /// </summary>
     private void Connect()
     {
         try
         {
             clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             clientSocket.Connect(IPInfo.IP, IPInfo.Port);
+            isConnected = true;
             
             Debug.Log("已连接至:" + clientSocket.RemoteEndPoint.ToString());
-            Send("Hello World");
+
+            receiveThread = new Thread(ReceiveData);
+            receiveThread.IsBackground = true;
+            receiveThread.Start();
         }
         catch (Exception e)
         {
@@ -36,12 +67,60 @@ public class NetworkManager : MonoSingleton<NetworkManager>
         }
     }
 
+    private void ReceiveData()
+    {
+        byte[] buffer = new byte[1024];
+        while (isConnected && clientSocket.Connected && clientSocket!= null)
+        {
+            try
+            {
+                int bytesRead = clientSocket.Receive(buffer);
+                if (bytesRead > 0)
+                {
+                    // 添加新数据到待处理缓冲区
+                    byte[] newData = new byte[bytesRead];
+                    Array.Copy(buffer, newData, bytesRead);
+                    
+                    _receiveBuffer.AddRange(newData);
+                    
+                    // 处理累计缓冲区中的数据
+                    ProcessReceiveData();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                isConnected = false;
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 发送消息到服务器
+    /// </summary>
+    /// <param name="msg"></param>
     private void Send(string msg)
     {
         try
         {
-            byte[] buffer = Encoding.UTF8.GetBytes(msg);
-            clientSocket.Send(buffer);
+            if (!isConnected || clientSocket == null || !clientSocket.Connected)
+            {
+                return;
+            }
+            
+            byte[] bodyData = Encoding.UTF8.GetBytes(msg);
+            int bodyLength = bodyData.Length;
+            
+            // 小端序
+            byte[] headData = BitConverter.GetBytes(bodyLength);
+            
+            // 合并消息头和消息体
+            byte[] totalData = new byte[headData.Length + bodyData.Length];
+            Buffer.BlockCopy(headData, 0, totalData, 0, headData.Length);
+            Buffer.BlockCopy(bodyData, 0, totalData, headData.Length, bodyData.Length);
+            
+            clientSocket.Send(totalData);
         }
         catch (Exception e)
         {
@@ -49,4 +128,140 @@ public class NetworkManager : MonoSingleton<NetworkManager>
             throw;
         }
     }
+
+    /// <summary>
+    /// 解析消息并传递
+    /// </summary>
+    private void ProcessReceiveData()
+    {
+        try
+        {
+            while (_receiveBuffer.Count > 4)
+            {
+                if (_expectedBodyLength == -1)
+                {
+                    byte[] headBytes = _receiveBuffer.GetRange(0, 4).ToArray();
+                    _expectedBodyLength = BitConverter.ToInt32(headBytes, 0);
+                }
+
+                // 判断是否是一条完整的消息
+                if (_receiveBuffer.Count >=  4 + _expectedBodyLength)
+                {
+                    // 提取消息体
+                    byte[] bodyBytes = _receiveBuffer.GetRange(4, _expectedBodyLength).ToArray();
+                    string msg = Encoding.UTF8.GetString(bodyBytes);
+                        
+                    // 实际处理消息
+                    ProcessMessage(msg);
+                        
+                    // 从缓冲区移除已处理数据
+                    _receiveBuffer.RemoveRange(0, 4 + _expectedBodyLength);
+                    _expectedBodyLength = -1;
+                }
+                else
+                {
+                    // 数据不完整，等待下次接受
+                    break;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 添加到消息队列
+    /// </summary>
+    /// <param name="msg"></param>
+    private void ProcessMessage(string msg)
+    {
+        try
+        {
+            NetworkMessage networkMessage = JsonConvert.DeserializeObject<NetworkMessage>(msg);
+            lock (queueLock)
+            {
+                messageQueue.Enqueue(networkMessage);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理消息队列
+    /// </summary>
+    private void ProcessMessageQueue()
+    {
+        lock (queueLock)
+        {
+            while (messageQueue.Count > 0)
+            {
+                NetworkMessage message = messageQueue.Dequeue();
+                HandleMessage(message);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 实际处理消息
+    /// </summary>
+    /// <param name="message"></param>
+    private void HandleMessage(NetworkMessage message)
+    {
+        try
+        {
+            switch (message.Type)
+            {
+                case MessageType.PlayerJoin:
+                    break;
+                case MessageType.PlayerLeave:
+                    break;
+                case MessageType.SyncFoods:
+                    Debug.Log($"收到食物同步消息，食物数量:{message.Foods?.Count ?? 0}");
+                    EventCenter.Instance.EventTrigger<List<FoodData>>(GameEvent.同步食物, message.Foods);
+                    break;
+                case MessageType.GenerateFood:
+                    Debug.Log($"收到食物生成消息，食物Id:{message.Food.FoodId}");
+                    EventCenter.Instance.EventTrigger<FoodData>(GameEvent.食物生成, message.Food);
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    #region 外部调用通知
+
+    public void SendFoodEatenMessage(string foodId)
+    {
+        try
+        {
+            NetworkMessage networkMessage = new NetworkMessage
+            {
+                Type = MessageType.RemoveFood,
+                FoodId = foodId,
+                //PlayerId = 
+            };
+            
+            string jsonMsg = JsonConvert.SerializeObject(networkMessage);
+            Send(jsonMsg);
+            Debug.Log($"发送食物被吃掉消息:{foodId}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    #endregion
 }
