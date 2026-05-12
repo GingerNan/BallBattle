@@ -49,6 +49,16 @@ namespace Server
         public Vector2 Position { get; set; }
         public float Mass { get; set; }
     }
+
+    [Serializable]
+    public class VomitData
+    {
+        public string PlayerId { get; set; }
+        public Vector2 Position { get; set; }
+        public Vector2 Direction { get; set; }
+        public float Mass { get; set; }
+        public string FoodId { get; set; }
+    }
     
     [Serializable]
     public class PlayerPositionData
@@ -77,5 +87,7 @@ namespace Server
         public List<FoodData> Foods { get; set; }
         public FoodData Food { get; set; }
         public string FoodId { get; set; }
+
+        public VomitData VomitData;
     }
 }

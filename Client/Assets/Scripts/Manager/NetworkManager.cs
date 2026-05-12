@@ -298,7 +298,8 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                     if (message.PlayerPositions != null)
                     {
                         // 同步所有玩家位置
-                        
+                        Debug.Log($"同步所有玩家位置: {message.PlayerPositions.Count}");
+                        EventCenter.Instance.EventTrigger<List<PlayerPositionData>>(GameEvent.同步玩家位置, message.PlayerPositions);
                     }
                     else if (message.PlayerPosition != null)
                     {
@@ -306,6 +307,9 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                         Debug.Log($"同步单个玩家位置: {message.PlayerPosition.PlayerId}");
                         EventCenter.Instance.EventTrigger<PlayerPositionData>(GameEvent.玩家位置更新, message.PlayerPosition);
                     }
+                    break;
+                case MessageType.PlayerVomit:
+                    EventCenter.Instance.EventTrigger<VomitData>(GameEvent.玩家吐球, message.VomitData);
                     break;
                 case MessageType.PlayerLeave:
                     break;
@@ -331,7 +335,8 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     }
 
     #region 外部调用通知
-
+    
+    // 发送食物被吃消息
     public void SendFoodEatenMessage(string foodId)
     {
         try
@@ -401,7 +406,36 @@ public class NetworkManager : MonoSingleton<NetworkManager>
             throw;
         }
     }
+    
+    // 发送玩家吐球消息
+    public void SendPlayerVomit(Vector2 position, Vector2 direction, float mass)
+    {
+        try
+        {
+            var vomitData = new VomitData()
+            {
+                PlayerId = _playerId,
+                Direction = direction,
+                Mass = mass,
+                Position = position,
+            };
 
+            NetworkMessage message = new NetworkMessage()
+            {
+                Type = MessageType.PlayerVomit,
+                VomitData = vomitData,
+            };
+            
+            Send(JsonConvert.SerializeObject(message));
+            Debug.Log($"发送吐球消息");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+    
     #endregion
 
     public string GetPlayerId()

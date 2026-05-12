@@ -224,6 +224,8 @@ public class BallController : MonoBehaviour, IEatable
 
         // 创建食物球
         CreateFoodBall(vomitMass);
+
+        SendVomitMessage(vomitMass);
     }
 
     private bool CanVomit()
@@ -239,8 +241,6 @@ public class BallController : MonoBehaviour, IEatable
         return true;
     }
 
-    #endregion
-
     private void CreateFoodBall(float vomitMass)
     {
         // 获取吐球方向
@@ -255,13 +255,28 @@ public class BallController : MonoBehaviour, IEatable
             foodPosition,
             Quaternion.identity,
             FoodSpawner.Instance.foodParent.transform
-            );
+        );
         
         FoodBall foodBall = foodObj.GetComponent<FoodBall>();
         foodBall.isFromPlayer = true;
         foodBall.SetMass(vomitMass);
         foodBall.InitMovement(vomitDirection, 10 * vomitMass, 1f);
     }
+
+    // 向服务器发送吐球数据
+    private void SendVomitMessage(float vomitMass)
+    {
+        Vector2 vomitDirection = ownerPlayer.GetLastMoveInput();
+        Vector2 foodPosition = (Vector2)transform.position + vomitDirection * (transform.localScale.x / 2 + 1f);
+        
+        NetworkManager.Instance.SendPlayerVomit(
+            new Server.Vector2(foodPosition.x, foodPosition.y),
+            new Server.Vector2(vomitDirection.x, vomitDirection.y),
+            vomitMass
+            );
+    }
+    
+    #endregion
     
     public void BeEaten(BallController playerBall)
     {

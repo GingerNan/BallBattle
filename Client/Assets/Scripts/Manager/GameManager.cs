@@ -23,12 +23,14 @@ public class GameManager : MonoSingleton<GameManager>
 	public void Start()
 	{
 		EventCenter.Instance.AddEventListener<PlayerPositionData>(GameEvent.玩家位置更新, OnPlayerPositionUpdate);
+		EventCenter.Instance.AddEventListener<List<PlayerPositionData>>(GameEvent.同步玩家位置, OnSyncAllPositions);
 	}
 
 	protected override void OnDestroy()
 	{
 		base.OnDestroy();
 		EventCenter.Instance.RemoveEventListener<PlayerPositionData>(GameEvent.玩家位置更新, OnPlayerPositionUpdate);
+		EventCenter.Instance.RemoveEventListener<List<PlayerPositionData>>(GameEvent.同步玩家位置, OnSyncAllPositions);
 	}
 	
 	public void CreateNewPlayer(string playerId, bool isLocalPlayer = false)
@@ -68,6 +70,18 @@ public class GameManager : MonoSingleton<GameManager>
 		}
 	}
 
+	// 同步所有玩家
+	private void OnSyncAllPositions(List<PlayerPositionData> playerPositions)
+	{
+		foreach (var positionData in playerPositions)
+		{
+			if (positionData.PlayerId == NetworkManager.Instance.GetPlayerId())
+				continue;
+			
+			UpdateRemotePlayerState(positionData);
+		}
+	}
+	
 	// 更新单个玩家
 	private void OnPlayerPositionUpdate(PlayerPositionData positionData)
 	{
@@ -77,6 +91,7 @@ public class GameManager : MonoSingleton<GameManager>
 		UpdateRemotePlayerState(positionData);
 	}
 
+	// 更新单个玩家位置状态
 	private void UpdateRemotePlayerState(PlayerPositionData positionData)
 	{
 		if (!remotePlayers.ContainsKey(positionData.PlayerId))
@@ -91,6 +106,7 @@ public class GameManager : MonoSingleton<GameManager>
 			Vector3 position = new Vector3(positionData.Position.X, positionData.Position.Y, 0);
 			remotePlayer.UpdatePosition(position);
 			
+			// 更新每个球
 			remotePlayer.UpdateBalls(positionData.Balls);
 		}
 	}

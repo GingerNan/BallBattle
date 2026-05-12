@@ -56,7 +56,10 @@ namespace Server
                 // 存储该客户端
                 Socket clientSocket = serverSocket.EndAccept(ar);
                 Client client = new Client(clientSocket);
-                clients.Add(client);
+                lock (clients)
+                {
+                    clients.Add(client);
+                }
 
                 // 发送新连接客户端的标识
                 SendClientTheId(client);
@@ -65,6 +68,9 @@ namespace Server
                 
                 // 向新链接上来的客户端同步食物
                 SyncAllFoodsToClient(client);
+                
+                // 向新客户端同步现有所有玩家位置
+                SyncAllPositionsToClient(client);
                 
                 // 继续等待其他客户端链接
                 StartAccepting();
@@ -152,9 +158,45 @@ namespace Server
                 throw;
             }
         }
+
+        // 向某一个客户端同步所有玩家位置
+        public void SyncAllPositionsToClient(Client client)
+        {
+            var playerPositions = GetAllPlayerPositions();
+            var message = new NetworkMessage()
+            {
+                Type = MessageType.SyncPositions,
+                PlayerPositions = playerPositions,
+            };
+            
+            client.Send(JsonConvert.SerializeObject(message));
+        }
         
         #region 广播方法
 
+        // 广播某个玩家吐球数据
+        public void BroadcastPlayerVomit(VomitData vomitData)
+        {
+            try
+            {
+                // 生成食物id
+                vomitData.FoodId = Guid.NewGuid().ToString();
+
+                var message = new NetworkMessage()
+                {
+                    Type = MessageType.PlayerVomit,
+                    VomitData = vomitData,
+                };
+                
+                Broadcast(JsonConvert.SerializeObject(message));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        
         // 广播单个玩家的位置给其他玩家
         private void BroadcastPlayerPosition(Client client)
         {
@@ -278,10 +320,35 @@ namespace Server
         /// <param name="client"></param>
         public void RemoveClient(Client client)
         {
-            if (clients.Contains(client))
+            lock (clients)
             {
-                clients.Remove(client);
+                if (clients.Contains(client))
+                {
+                    clients.Remove(client);
+                }
             }
+        }
+
+        // 获取所有玩家的位置信息
+        private List<PlayerPositionData> GetAllPlayerPositions()
+        {
+            var positions = new List<PlayerPositionData>();
+
+            lock (clients)
+            {
+                foreach (var client in clients)
+                {
+                    positions.Add(new PlayerPositionData()
+                    {
+                        PlayerId = client.PlayerId,
+                        Position = client.Position,
+                        Balls = client.Balls,
+                        TotalMass = client.TotalMass,
+                    });
+                }
+            }
+
+            return positions;
         }
     }
 }

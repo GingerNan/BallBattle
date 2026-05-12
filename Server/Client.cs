@@ -198,6 +198,9 @@ namespace Server
                 case MessageType.RemoveFood:
                     HandleRemoveFood(networkMessage.FoodId);
                     break;
+                case MessageType.PlayerVomit:
+                    HandlePlayerVomit(networkMessage.VomitData);
+                    break;
                 case MessageType.PlayerLeave:
                     break;
             }
@@ -238,6 +241,13 @@ namespace Server
             Program.server.HandleFoodRemove(foodId, this);
         }
 
+        // 处理玩家吐球
+        private void HandlePlayerVomit(VomitData vomitData)
+        {
+            Console.WriteLine($"玩家 {PlayerId} 吐球, 质量: {vomitData.Mass}");
+            Program.server.BroadcastPlayerVomit(vomitData);
+        }
+        
         #endregion
     }
 }
