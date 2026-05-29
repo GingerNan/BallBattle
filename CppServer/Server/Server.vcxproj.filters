@@ -50,5 +50,8 @@
     <ClInclude Include="FoodManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="RandomUtil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

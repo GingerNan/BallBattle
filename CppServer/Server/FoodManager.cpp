@@ -1,15 +1,7 @@
 #include "FoodManager.h"
+#include "RandomUtil.h"
 #include <iostream>
 #include <boost/uuid.hpp>
-#include <random>
-
-inline double NextDouble()
-{
-	static std::random_device rd;
-	static std::mt19937 gen(rd());
-	static std::uniform_real_distribution<double> dis(0.0, 1.0);
-	return dis(gen);
-}
 
 FoodManager::FoodManager() {}
 
@@ -27,9 +19,9 @@ std::shared_ptr<FoodData> FoodManager::GenerateFood()
 {
 	boost::uuids::uuid uuid = boost::uuids::random_generator()();
 	std::string foodId = boost::uuids::to_string(uuid);
-	float x = static_cast<float>(NextDouble() * MAP_WIDTH - MAP_WIDTH / 2);
-	float y = static_cast<float>(NextDouble() * MAP_HEIGHT - MAP_HEIGHT / 2);
-	float mass = static_cast<float>(NextDouble() * 0.7 + 0.3);
+	float x = RandomUtil::Range(-MAP_WIDTH / 2, MAP_WIDTH / 2);
+	float y = RandomUtil::Range(-MAP_HEIGHT / 2, MAP_HEIGHT / 2);
+	float mass = RandomUtil::Range(0.3f, 1.0f);
 
 	std::shared_ptr<FoodData> food = std::make_shared<FoodData>();
 	food->FoodId = foodId;
