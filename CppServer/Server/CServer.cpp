@@ -11,6 +11,7 @@ CServer::CServer(boost::asio::io_context& ioc, unsigned short port)
 	_acceptor(ioc, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
 {
 	std::cout << "Server Start! listen port: " << port << std::endl;
+	FoodManager::GetInstance().InitializeFoods();
 	StartAccpet();
 }
 
@@ -115,7 +116,7 @@ void CServer::BroadcastFoodGenerated(std::shared_ptr<FoodData> food)
 	msg.Food = *food;
 
 	nlohmann::json json_msg = msg;
-	Broadcast(json_msg);
+	Broadcast(json_msg.dump());
 	std::cout << "广播生成食物：" << food->FoodId << std::endl;
 }
 
@@ -174,14 +175,6 @@ void CServer::StartAccpet()
 {
 	std::shared_ptr<CClient> new_session = std::make_shared<CClient>(_ioc, this);
 
-	SendClientTheId(new_session);
-
-	std::cout << "有客户端连接上了服务器：" << new_session->GetSocket().remote_endpoint().address().to_string() << std::endl;
-
-	SyncAllFoodsToClient(new_session);
-
-	SyncAllPositionsToClient(new_session);
-
 	_acceptor.async_accept(
 		new_session->GetSocket(),
 		std::bind(&CServer::HandleAccept, this, new_session, std::placeholders::_1)
@@ -192,8 +185,12 @@ void CServer::HandleAccept(std::shared_ptr<CClient> newSeesion, const boost::sys
 {
 	if (!err)
 	{
-		newSeesion->Start();
 		_clients.insert({ newSeesion->GetUuid(), newSeesion });
+		std::cout << "有客户端连接上了服务器：" << newSeesion->GetSocket().remote_endpoint().address().to_string() << std::endl;
+		newSeesion->Start();
+		SendClientTheId(newSeesion);
+		SyncAllFoodsToClient(newSeesion);
+		SyncAllPositionsToClient(newSeesion);
 	}
 	else
 	{

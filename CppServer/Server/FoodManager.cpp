@@ -31,7 +31,10 @@ std::shared_ptr<FoodData> FoodManager::GenerateFood()
 	float y = static_cast<float>(NextDouble() * MAP_HEIGHT - MAP_HEIGHT / 2);
 	float mass = static_cast<float>(NextDouble() * 0.7 + 0.3);
 
-	std::shared_ptr<FoodData> food = std::make_shared<FoodData>(foodId, x, y, mass);
+	std::shared_ptr<FoodData> food = std::make_shared<FoodData>();
+	food->FoodId = foodId;
+	food->Position = Vector2(x, y);
+	food->Mass = mass;
 	_foods[foodId] = food;
 	return food;
 }

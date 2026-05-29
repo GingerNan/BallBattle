@@ -4,7 +4,7 @@
 #include <boost/uuid.hpp>
 
 CClient::CClient(boost::asio::io_context& ioc, CServer* server)
-	: _socket(ioc), _server(server), _b_close(false), _b_head_parse(false)
+	: _socket(ioc), _server(server), _b_close(false), _b_head_parse(false), _total_mass(0.0f)
 {
 	boost::uuids::uuid uuid = boost::uuids::random_generator()();
 	_uuid = boost::uuids::to_string(uuid);
@@ -288,5 +288,5 @@ void CClient::HandleRemoveFood(std::string foodId)
 void CClient::HandlePlayerVomit(VomitData vomidData)
 {
 	std::cout << "玩家 " << vomidData.PlayerId << "吐球，质量：" << vomidData.Mass << std::endl;
-
+	_server->HandlePlayerVomit(vomidData);
 }
