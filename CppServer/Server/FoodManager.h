@@ -27,7 +27,7 @@ public:
 	std::shared_ptr<FoodData> GenerateFood();
 
 	// 获取当前所有食物
-	std::vector<std::shared_ptr<FoodData>> GetAllFoods();
+	std::vector<FoodData> GetAllFoods();
 
 	// 判断食该食物存不存在
 	bool IsFoodExist(std::string foodId);

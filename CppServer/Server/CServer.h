@@ -18,6 +18,14 @@ public:
 
 	void HandlePlayerVomit(VomitData vomitData);
 private:
+	// 发送新连接客户端的标识
+	void SendClientTheId(std::shared_ptr<CClient> client);
+
+	// 向该客户端同步食物
+	void SyncAllFoodsToClient(std::shared_ptr<CClient> client);
+
+	void SyncAllPositionsToClient(std::shared_ptr<CClient> client);
+
 	// 广播单个玩家的位置给其他玩家
 	void BroadcastPlayerPosition(std::shared_ptr<CClient> client);
 
@@ -31,6 +39,8 @@ private:
 	void BroadcastToOthers(std::string msg, std::shared_ptr<CClient> exclude_client);
 
 	void Broadcast(std::string msg);
+
+	std::vector<PlayerPostionData> GetAllPlayerPositions();
 private:
 	void StartAccpet();
 

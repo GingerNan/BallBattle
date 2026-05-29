@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <list>
+#include <vector>
 #include "Common.h"
 #include "json.hpp"
 
@@ -46,7 +46,7 @@ struct PlayerPostionData
 	std::string PlayerId;
 	Vector2 Position;
 	float TotalMass = 0.0f;
-	std::list<BallData> Balls;
+	std::vector<BallData> Balls;
 };
 
 struct NetworkMessage
@@ -59,11 +59,11 @@ struct NetworkMessage
 	std::string Data;
 
 	// 同步位置相关
-	std::list<PlayerPostionData> PlayerPositions;
+	std::vector<PlayerPostionData> PlayerPositions;
 	PlayerPostionData PlayerPosition;
 
 	// 食物相关
-	std::list<FoodData> Foods;
+	std::vector<FoodData> Foods;
 	FoodData Food;
 	std::string FoodId;
 

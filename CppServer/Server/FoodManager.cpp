@@ -36,12 +36,12 @@ std::shared_ptr<FoodData> FoodManager::GenerateFood()
 	return food;
 }
 
-std::vector<std::shared_ptr<FoodData>> FoodManager::GetAllFoods()
+std::vector<FoodData> FoodManager::GetAllFoods()
 {
-	std::vector<std::shared_ptr<FoodData>> foods;
+	std::vector<FoodData> foods;
 	for (const auto& pair : _foods)
 	{
-		foods.push_back(std::make_shared<FoodData>(pair.second));
+		foods.push_back(*pair.second);
 	}
 	return foods;
 }

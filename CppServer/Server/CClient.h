@@ -17,7 +17,9 @@ public:
 	float GetTotalMass() { return _total_mass; }
 
 	const Vector2& GetPostion() const { return _postion; }
-	const std::list<BallData>& GetBalls() const { return _balls; }
+	const std::vector<BallData>& GetBalls() const { return _balls; }
+
+	bool IsClose() const { return _b_close; }
 
 	void Start();
 	void Close();
@@ -63,7 +65,7 @@ private:
 
 	//玩家状态信息
 	Vector2 _postion;
-	std::list <BallData> _balls;
+	std::vector<BallData> _balls;
 	float _total_mass;
 };
 
