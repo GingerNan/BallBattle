@@ -230,7 +230,7 @@ void CClient::ProcessMessage(std::shared_ptr<MsgNode> msg_node)
 	}
 	catch (const nlohmann::json::exception& e)
 	{
-		std::cout << "Parse NetworkMessage failed: " << e.what() << std::endl;
+		std::cout << "网络消息解析失败：" << e.what() << std::endl;
 		return;
 	}
 
