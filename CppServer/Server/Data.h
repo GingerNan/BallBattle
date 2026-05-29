@@ -7,9 +7,10 @@
 // 二维向量
 struct Vector2
 {
-	float x;
-	float y;
+	float x = 0.0f;
+	float y = 0.0f;
 
+	Vector2() = default;
 	Vector2(float x, float y) : x(x), y(y) {}
 };
 
@@ -18,7 +19,7 @@ struct FoodData
 {
 	std::string FoodId;
 	Vector2 Position;
-	float Mass;
+	float Mass = 0.0f;
 	std::string FromPlayerId;
 };
 
@@ -26,7 +27,7 @@ struct BallData
 {
 	std::string BallId;
 	Vector2 Position;
-	float Mass;
+	float Mass = 0.0f;
 };
 
 // 吐球数据
@@ -35,7 +36,7 @@ struct VomitData
 	std::string PlayerId;
 	Vector2 Position;
 	Vector2 Direction;		// 吐球的方向
-	float Mass;
+	float Mass = 0.0f;
 	std::string FoodId;		// 吐球对应的食物id
 };
 
@@ -44,15 +45,13 @@ struct PlayerPostionData
 {
 	std::string PlayerId;
 	Vector2 Position;
-	float TotalMass;
+	float TotalMass = 0.0f;
 	std::list<BallData> Balls;
 };
 
-NLOHMANN_DEFINE_TYPE_INTRUSIVE(NetworkMessage, Type, PlayerId, Position, Data, PlayerPositions, PlayerPosition, Foods, food, FoodId, VomitData)
-
 struct NetworkMessage
 {
-	MessageType Type;
+	MessageType Type = PlayerJoin;
 
 	// 玩家相关
 	std::string PlayerId;
@@ -65,8 +64,16 @@ struct NetworkMessage
 
 	// 食物相关
 	std::list<FoodData> Foods;
-	FoodData food;
+	FoodData Food;
 	std::string FoodId;
 
 	VomitData VomitData;
 };
+
+// Json序列化和反序列化
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Vector2, x, y)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(FoodData, FoodId, Position, Mass, FromPlayerId)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(BallData, BallId, Position, Mass)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(VomitData, PlayerId, Position, Direction, Mass, FoodId)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(PlayerPostionData, PlayerId, Position, TotalMass, Balls)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NetworkMessage, Type, PlayerId, Position, Data, PlayerPositions, PlayerPosition, Foods, Food, FoodId, VomitData)

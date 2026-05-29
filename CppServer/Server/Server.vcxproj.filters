@@ -15,18 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Server.cpp">
+    <ClCompile Include="BattleServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CSession.cpp">
+    <ClCompile Include="CClient.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="CServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FoodManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CSession.h">
+    <ClInclude Include="CClient.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="CServer.h">
@@ -42,6 +45,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="json.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FoodManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

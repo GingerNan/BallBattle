@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>E:\Develop\boost_1_89_0;E:\Develop\libjson\include;$(IncludePath)</IncludePath>
-    <LibraryPath>E:\Develop\boost_1_89_0\stage\lib;E:\Develop\libjson\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Develop\boost_1_89_0;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\Develop\boost_1_89_0\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -113,7 +113,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>json_vc71_libmtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -132,17 +132,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Server.cpp" />
+    <ClCompile Include="BattleServer.cpp" />
     <ClCompile Include="CServer.cpp" />
-    <ClCompile Include="CSession.cpp" />
+    <ClCompile Include="CClient.cpp" />
+    <ClCompile Include="FoodManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="Data.h" />
+    <ClInclude Include="FoodManager.h" />
     <ClInclude Include="json.hpp" />
     <ClInclude Include="MsgNode.h" />
     <ClInclude Include="CServer.h" />
-    <ClInclude Include="CSession.h" />
+    <ClInclude Include="CClient.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

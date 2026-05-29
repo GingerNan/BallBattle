@@ -6,14 +6,18 @@
 #include <mutex>
 
 class CServer;
-class CSession : public std::enable_shared_from_this<CSession>
+class CClient : public std::enable_shared_from_this<CClient>
 {
 public:
-	CSession(boost::asio::io_context& ioc, CServer* server);
-	~CSession();
+	CClient(boost::asio::io_context& ioc, CServer* server);
+	~CClient();
 
 	boost::asio::ip::tcp::socket& GetSocket() { return _socket; }
 	std::string& GetUuid() { return _uuid; }
+	float GetTotalMass() { return _total_mass; }
+
+	const Vector2& GetPostion() const { return _postion; }
+	const std::list<BallData>& GetBalls() const { return _balls; }
 
 	void Start();
 	void Close();
@@ -22,13 +26,13 @@ public:
 	void Send(std::string msg);
 private:
 	void HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
-		std::shared_ptr<CSession> shared_self);
+		std::shared_ptr<CClient> shared_self);
 
-	void HandleWrite(const boost::system::error_code& err, std::shared_ptr<CSession> shared_self);
+	void HandleWrite(const boost::system::error_code& err, std::shared_ptr<CClient> shared_self);
 
 	void ProcessMessage(std::shared_ptr<MsgNode> msg_node);
 
-private: // 处理对应的消息方法
+private:
 	// 玩家初次连接
 	void HandlePlayerJoin();
 
@@ -56,5 +60,10 @@ private:
 	std::shared_ptr<MsgNode> _recv_msg_node;
 	bool _b_head_parse;
 	std::shared_ptr<MsgNode> _recv_head_node;
+
+	//玩家状态信息
+	Vector2 _postion;
+	std::list <BallData> _balls;
+	float _total_mass;
 };
 

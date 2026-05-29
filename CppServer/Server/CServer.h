@@ -1,6 +1,8 @@
 ﻿#pragma once
-#include "CSession.h"
 #include <map>
+#include <memory>
+#include <string>
+#include "CClient.h"
 
 class CServer
 {
@@ -8,15 +10,36 @@ public:
 	CServer(boost::asio::io_context& ioc, unsigned short port);
 
 	void ClearSession(std::string uuid);
+
+public:
+	void HandlePlayerPosition(std::shared_ptr<CClient> client);
+
+	void HandleRemoveFood(std::string foodId, std::shared_ptr<CClient> client);
+
+	void HandlePlayerVomit(VomitData vomitData);
+private:
+	// 广播单个玩家的位置给其他玩家
+	void BroadcastPlayerPosition(std::shared_ptr<CClient> client);
+
+	// 广播移除该食物
+	void BroadcastFoodRemove(std::string foodId);
+
+	void BroadcastFoodGenerated(std::shared_ptr<FoodData> food);
+
+	void BroadcastPlayerVomit(VomitData vomitData);
+
+	void BroadcastToOthers(std::string msg, std::shared_ptr<CClient> exclude_client);
+
+	void Broadcast(std::string msg);
 private:
 	void StartAccpet();
 
-	void HandleAccept(std::shared_ptr<CSession> newSeesion, const boost::system::error_code& err);
+	void HandleAccept(std::shared_ptr<CClient> newSeesion, const boost::system::error_code& err);
 
 private:
 	boost::asio::io_context& _ioc;
 	boost::asio::ip::tcp::acceptor _acceptor;
 	unsigned short _port;
-	std::map<std::string, std::shared_ptr<CSession>> _sessions;
+	std::map<std::string, std::shared_ptr<CClient>> _clients;
 };
 

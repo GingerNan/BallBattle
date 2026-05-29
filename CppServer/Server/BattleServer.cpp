@@ -1,5 +1,6 @@
 ﻿#include <iostream>
 #include "CServer.h"
+#include <boost/asio.hpp>
 
 int main()
 {
