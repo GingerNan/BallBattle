@@ -24,16 +24,9 @@ public:
 	void Start();
 	void Close();
 
+	// 发送消息，msg必须保证在发送完成前有效
 	void Send(char* msg, int max_len);
 	void Send(std::string msg);
-private:
-	void HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
-		std::shared_ptr<CClient> shared_self);
-
-	void HandleWrite(const boost::system::error_code& err, std::shared_ptr<CClient> shared_self);
-
-	void ProcessMessage(std::shared_ptr<MsgNode> msg_node);
-
 private:
 	// 玩家初次连接
 	void HandlePlayerJoin();
@@ -46,6 +39,14 @@ private:
 
 	// 处理玩家吐球
 	void HandlePlayerVomit(VomitData vomidData);
+
+private:
+	void HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
+		std::shared_ptr<CClient> shared_self);
+
+	void HandleWrite(const boost::system::error_code& err, std::shared_ptr<CClient> shared_self);
+
+	void ProcessMessage(std::shared_ptr<MsgNode> msg_node);
 private:
 	std::string _uuid;
 	boost::asio::ip::tcp::socket _socket;
@@ -62,6 +63,7 @@ private:
 	std::shared_ptr<MsgNode> _recv_msg_node;
 	bool _b_head_parse;
 	std::shared_ptr<MsgNode> _recv_head_node;
+	std::mutex _session_mtx;
 
 	//玩家状态信息
 	Vector2 _postion;

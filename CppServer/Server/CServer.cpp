@@ -1,6 +1,7 @@
 ﻿#include "CServer.h"
 #include "CClient.h"
 #include "FoodManager.h"
+#include "AsioIOServicePool.h"
 
 #include <vector>
 #include <iostream>
@@ -173,7 +174,8 @@ std::vector<PlayerPostionData> CServer::GetAllPlayerPositions()
 
 void CServer::StartAccpet()
 {
-	std::shared_ptr<CClient> new_session = std::make_shared<CClient>(_ioc, this);
+	auto& ioc = AsioIOServicePool::GetInstance().GetIOService();
+	std::shared_ptr<CClient> new_session = std::make_shared<CClient>(ioc, this);
 
 	_acceptor.async_accept(
 		new_session->GetSocket(),

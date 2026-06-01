@@ -27,6 +27,7 @@ void CClient::Start()
 
 void CClient::Close()
 {
+	std::lock_guard lock(_session_mtx);
 	_b_close = true;
 	_socket.close();
 }

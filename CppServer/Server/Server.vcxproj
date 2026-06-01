@@ -132,12 +132,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AsioIOServicePool.cpp" />
     <ClCompile Include="BattleServer.cpp" />
     <ClCompile Include="CServer.cpp" />
     <ClCompile Include="CClient.cpp" />
     <ClCompile Include="FoodManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AsioIOServicePool.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Data.h" />
     <ClInclude Include="FoodManager.h" />

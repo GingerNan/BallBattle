@@ -10,7 +10,6 @@ public:
 	CServer(boost::asio::io_context& ioc, unsigned short port);
 
 	void ClearSession(std::string uuid);
-
 public:
 	void HandlePlayerPosition(std::shared_ptr<CClient> client);
 
