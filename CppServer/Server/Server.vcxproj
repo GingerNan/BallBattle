@@ -135,8 +135,12 @@
     <ClCompile Include="AsioIOServicePool.cpp" />
     <ClCompile Include="BattleServer.cpp" />
     <ClCompile Include="CServer.cpp" />
-    <ClCompile Include="CClient.cpp" />
+    <ClCompile Include="CSession.cpp" />
     <ClCompile Include="FoodManager.cpp" />
+    <ClCompile Include="LogicSystem.cpp" />
+    <ClCompile Include="MsgNode.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="PlayerManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AsioIOServicePool.h" />
@@ -144,10 +148,13 @@
     <ClInclude Include="Data.h" />
     <ClInclude Include="FoodManager.h" />
     <ClInclude Include="json.hpp" />
+    <ClInclude Include="LogicSystem.h" />
     <ClInclude Include="MsgNode.h" />
+    <ClInclude Include="Player.h" />
+    <ClInclude Include="PlayerManager.h" />
     <ClInclude Include="RandomUtil.h" />
     <ClInclude Include="CServer.h" />
-    <ClInclude Include="CClient.h" />
+    <ClInclude Include="CSession.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

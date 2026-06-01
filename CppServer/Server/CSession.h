@@ -6,18 +6,14 @@
 #include <mutex>
 
 class CServer;
-class CClient : public std::enable_shared_from_this<CClient>
+class CSession : public std::enable_shared_from_this<CSession>
 {
 public:
-	CClient(boost::asio::io_context& ioc, CServer* server);
-	~CClient();
+	CSession(boost::asio::io_context& ioc, CServer* server);
+	~CSession();
 
 	boost::asio::ip::tcp::socket& GetSocket() { return _socket; }
-	std::string& GetUuid() { return _uuid; }
-	float GetTotalMass() { return _total_mass; }
-
-	const Vector2& GetPostion() const { return _postion; }
-	const std::vector<BallData>& GetBalls() const { return _balls; }
+	std::string& GetSessionUid() { return _session_uid; }
 
 	bool IsClose() const { return _b_close; }
 
@@ -42,13 +38,13 @@ private:
 
 private:
 	void HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
-		std::shared_ptr<CClient> shared_self);
+		std::shared_ptr<CSession> shared_self);
 
-	void HandleWrite(const boost::system::error_code& err, std::shared_ptr<CClient> shared_self);
+	void HandleWrite(const boost::system::error_code& err, std::shared_ptr<CSession> shared_self);
 
 	void ProcessMessage(std::shared_ptr<MsgNode> msg_node);
 private:
-	std::string _uuid;
+	std::string _session_uid;
 	boost::asio::ip::tcp::socket _socket;
 	char _data[MAX_LEN];
 
@@ -71,3 +67,12 @@ private:
 	float _total_mass;
 };
 
+class LogicNode
+{
+	friend class LogicSystem;
+public:
+	LogicNode(std::shared_ptr<CSession> client, std::shared_ptr<RecvNode> node);
+private:
+	std::shared_ptr<CSession> _client;
+	std::shared_ptr<RecvNode> _recvnode;
+};

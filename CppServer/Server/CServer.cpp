@@ -1,7 +1,9 @@
 ﻿#include "CServer.h"
-#include "CClient.h"
+#include "CSession.h"
 #include "FoodManager.h"
 #include "AsioIOServicePool.h"
+#include "PlayerManager.h"
+#include "Player.h"
 
 #include <vector>
 #include <iostream>
@@ -18,15 +20,15 @@ CServer::CServer(boost::asio::io_context& ioc, unsigned short port)
 
 void CServer::ClearSession(std::string uuid)
 {
-	_clients.erase(uuid);
+	_sessions.erase(uuid);
 }
 
-void CServer::HandlePlayerPosition(std::shared_ptr<CClient> client)
+void CServer::HandlePlayerPosition(std::shared_ptr<CSession> session)
 {
-	BroadcastPlayerPosition(client);
+	BroadcastPlayerPosition(session);
 }
 
-void CServer::HandleRemoveFood(std::string foodId, std::shared_ptr<CClient> client)
+void CServer::HandleRemoveFood(std::string foodId, std::shared_ptr<CSession> session)
 {
 	if (!FoodManager::GetInstance().IsFoodExist(foodId))
 	{
@@ -49,61 +51,65 @@ void CServer::HandlePlayerVomit(VomitData vomitData)
 	BroadcastPlayerVomit(vomitData);
 }
 
-void CServer::SendClientTheId(std::shared_ptr<CClient> client)
+void CServer::SendPlayerId(std::shared_ptr<CSession> session)
 {
+	std::shared_ptr<Player> player = PlayerManager::GetInstance().CreatePlayer();
+
 	NetworkMessage msg;
-	msg.Type = GiveThePlayerId;
-	msg.PlayerId = client->GetUuid();
+	msg.Type = MSG_GIVE_PLAYER_ID;
+	msg.PlayerId = player->GetId();
 
 	nlohmann::json json_msg = msg;
-	client->Send(json_msg.dump());
+	session->Send(json_msg.dump());
 
-	std::cout << "发送玩家ID给客户端， PlayerId: " << client->GetUuid() << std::endl;
+	std::cout << "发送玩家ID给客户端， PlayerId: " << session->GetSessionUid() << std::endl;
 }
 
-void CServer::SyncAllFoodsToClient(std::shared_ptr<CClient> client)
+void CServer::SyncAllFoodsTosession(std::shared_ptr<CSession> session)
 {
 	auto foods = FoodManager::GetInstance().GetAllFoods();
 	NetworkMessage msg;
-	msg.Type = SyncFoods;
+	msg.Type = MSG_SYNC_FOODS;
 	msg.Foods = foods;
 
 	nlohmann::json json_msg = msg;
-	client->Send(json_msg.dump());
-	std::cout << "向客户端" << client->GetUuid() << " 同步食物，数量: " << foods.size() << std::endl;
+	session->Send(json_msg.dump());
+	std::cout << "向客户端" << session->GetSessionUid() << " 同步食物，数量: " << foods.size() << std::endl;
 }
 
-void CServer::SyncAllPositionsToClient(std::shared_ptr<CClient> client)
+void CServer::SyncAllPositionsTosession(std::shared_ptr<CSession> session)
 {
-	auto playerPositions = GetAllPlayerPositions();
+	auto playerPositions = PlayerManager::GetInstance().GetAllPlayerPositions();
 	NetworkMessage msg;
-	msg.Type = SyncPositions;
+	msg.Type = MSG_SYNC_POSITIONS;
 	msg.PlayerPositions = playerPositions;
 
 	nlohmann::json json_msg = msg;
-	client->Send(json_msg.dump());
+	session->Send(json_msg.dump());
 }
 
-void CServer::BroadcastPlayerPosition(std::shared_ptr<CClient> client)
+void CServer::BroadcastPlayerPosition(std::shared_ptr<CSession> session)
 {
+	// TODO 先用 1 代替
+	auto player = PlayerManager::GetInstance().FindPlayerById("1");
 	PlayerPostionData postion;
-	postion.PlayerId = client->GetUuid();
-	postion.Balls = client->GetBalls();
-	postion.Position = client->GetPostion();
-	postion.TotalMass = client->GetTotalMass();
+	postion.PlayerId = session->GetSessionUid();
+	postion.Balls = player->GetBalls();
+	postion.Position = player->GetPosition();
+	postion.TotalMass = player->GetTotalMass();
 
 	NetworkMessage message;
-	message.Type = SyncPositions;
+	message.Type = MSG_SEND_POSITION;
 	message.PlayerPosition = postion;
 
 	nlohmann::json json_msg = message;
-	BroadcastToOthers(json_msg.dump(), client);
+	BroadcastToOthers(json_msg.dump(), session);
 }
 
 void CServer::BroadcastFoodRemove(std::string foodId)
 {
 	NetworkMessage msg;
-	msg.Type = RemoveFood;
+	msg.Type = MSG_REMOVE_FOOD;
 	msg.FoodId = foodId;
 
 	nlohmann::json json_msg = msg;
@@ -113,7 +119,7 @@ void CServer::BroadcastFoodRemove(std::string foodId)
 void CServer::BroadcastFoodGenerated(std::shared_ptr<FoodData> food)
 {
 	NetworkMessage msg;
-	msg.Type = GenerateFood;
+	msg.Type = MSG_GENERATE_FOOD;
 	msg.Food = *food;
 
 	nlohmann::json json_msg = msg;
@@ -127,55 +133,39 @@ void CServer::BroadcastPlayerVomit(VomitData vomitData)
 	vomitData.FoodId = boost::uuids::to_string(uuid);
 
 	NetworkMessage msg;
-	msg.Type = PlayerVomit;
+	msg.Type = MSG_PLAYER_VOMIT;
 	msg.VomitData = vomitData;
 
 	nlohmann::json json_msg = msg;
 	Broadcast(json_msg.dump());
 }
 
-void CServer::BroadcastToOthers(std::string msg, std::shared_ptr<CClient> exclude_client)
+void CServer::BroadcastToOthers(std::string msg, std::shared_ptr<CSession> exclude_session)
 {
-	for (auto& [uuid, client] : _clients)
+	for (auto& [uuid, session] : _sessions)
 	{
-		if (client == exclude_client || client->IsClose())
+		if (session == exclude_session || session->IsClose())
 			continue;
 
-		client->Send(msg);
+		session->Send(msg);
 	}
 }
 
 void CServer::Broadcast(std::string msg)
 {
-	for (auto& [uuid, client] : _clients)
+	for (auto& [uuid, session] : _sessions)
 	{
-		if (client->IsClose())
+		if (session->IsClose())
 			continue;
 
-		client->Send(msg);
+		session->Send(msg);
 	}
-}
-
-std::vector<PlayerPostionData> CServer::GetAllPlayerPositions()
-{
-	std::vector<PlayerPostionData> positions;
-	for (auto& [uuid, client] : _clients)
-	{
-		PlayerPostionData postion;
-		postion.PlayerId = client->GetUuid();
-		postion.Balls = client->GetBalls();
-		postion.Position = client->GetPostion();
-		postion.TotalMass = client->GetTotalMass();
-		positions.push_back(postion);
-	}
-
-	return positions;
 }
 
 void CServer::StartAccpet()
 {
 	auto& ioc = AsioIOServicePool::GetInstance().GetIOService();
-	std::shared_ptr<CClient> new_session = std::make_shared<CClient>(ioc, this);
+	std::shared_ptr<CSession> new_session = std::make_shared<CSession>(ioc, this);
 
 	_acceptor.async_accept(
 		new_session->GetSocket(),
@@ -183,16 +173,16 @@ void CServer::StartAccpet()
 	);
 }
 
-void CServer::HandleAccept(std::shared_ptr<CClient> newSeesion, const boost::system::error_code& err)
+void CServer::HandleAccept(std::shared_ptr<CSession> newSeesion, const boost::system::error_code& err)
 {
 	if (!err)
 	{
-		_clients.insert({ newSeesion->GetUuid(), newSeesion });
+		_sessions.insert({ newSeesion->GetSessionUid(), newSeesion });
 		std::cout << "有客户端连接上了服务器：" << newSeesion->GetSocket().remote_endpoint().address().to_string() << std::endl;
 		newSeesion->Start();
-		SendClientTheId(newSeesion);
-		SyncAllFoodsToClient(newSeesion);
-		SyncAllPositionsToClient(newSeesion);
+		SendPlayerId(newSeesion);
+		SyncAllFoodsTosession(newSeesion);
+		SyncAllPositionsTosession(newSeesion);
 	}
 	else
 	{

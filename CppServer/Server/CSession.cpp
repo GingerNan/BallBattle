@@ -1,44 +1,45 @@
-﻿#include "CClient.h"
+﻿#include "CSession.h"
 #include "CServer.h"
 #include <iostream>
 #include <boost/uuid.hpp>
 
-CClient::CClient(boost::asio::io_context& ioc, CServer* server)
+CSession::CSession(boost::asio::io_context& ioc, CServer* server)
 	: _socket(ioc), _server(server), _b_close(false), _b_head_parse(false), _total_mass(0.0f)
 {
 	boost::uuids::uuid uuid = boost::uuids::random_generator()();
-	_uuid = boost::uuids::to_string(uuid);
-	_recv_head_node = std::make_shared<MsgNode>(HEAD_LEN);
+	_session_uid = boost::uuids::to_string(uuid);
+
+	_recv_head_node = std::make_shared<MsgNode>(HEAD_TOTAL_LEN);
 }
 
-CClient::~CClient()
+CSession::~CSession()
 {
-	std::cout << "CSession Desturct" << std::endl;
+	std::cout << "CServer Desturct" << std::endl;
 }
 
-void CClient::Start()
+void CSession::Start()
 {
 	memset(_data, '\0', MAX_LEN);
 	_socket.async_read_some(
 		boost::asio::buffer(_data, MAX_LEN),
-		std::bind(&CClient::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_from_this())
+		std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_from_this())
 	);
 }
 
-void CClient::Close()
+void CSession::Close()
 {
 	std::lock_guard lock(_session_mtx);
 	_b_close = true;
 	_socket.close();
 }
 
-void CClient::Send(char* msg, int max_len)
+void CSession::Send(char* msg, int max_len)
 {
 	std::lock_guard<std::mutex> lock(_send_mtx);
 	int send_que_size = _send_que.size();
 	if (send_que_size > MAX_SEND_QUE)
 	{
-		std::cout << "Session: " << _uuid << " send que fulled, size: " << MAX_SEND_QUE << std::endl;
+		std::cout << "Session: " << _session_uid << " send que fulled, size: " << MAX_SEND_QUE << std::endl;
 		return;
 	}
 
@@ -52,24 +53,24 @@ void CClient::Send(char* msg, int max_len)
 	boost::asio::async_write(
 		_socket,
 		boost::asio::buffer(msg_node->_data, msg_node->_total_len),
-		std::bind(&CClient::HandleWrite, this, std::placeholders::_1, shared_from_this())
+		std::bind(&CSession::HandleWrite, this, std::placeholders::_1, shared_from_this())
 	);
 }
 
-void CClient::Send(std::string msg)
+void CSession::Send(std::string msg)
 {
 	Send(msg.data(), msg.size());
 }
 
-void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
-	std::shared_ptr<CClient> shared_self)
+void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
+	std::shared_ptr<CSession> shared_self)
 {
 	if (err)
 	{
 		std::cout << "Handle Read failed!, Err code: " << err.value()
 			<< ", Err msg: " << err.message() << std::endl;
 		Close();
-		_server->ClearSession(_uuid);
+		_server->ClearSession(_session_uid);
 		return;
 	}
 
@@ -83,7 +84,7 @@ void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_tran
 				_recv_head_node->_cur_len += bytes_transferred;
 				::memset(_data, 0, MAX_LEN);
 				_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
-					std::bind(&CClient::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
+					std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
 				return;
 			}
 			//收到的数据比头部多
@@ -101,7 +102,7 @@ void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_tran
 			//头部长度非法
 			if (data_len > MAX_LEN) {
 				std::cout << "invalid data length is " << data_len << std::endl;
-				_server->ClearSession(_uuid);
+				_server->ClearSession(_session_uid);
 				return;
 			}
 
@@ -112,7 +113,7 @@ void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_tran
 				_recv_msg_node->_cur_len += bytes_transferred;
 				::memset(_data, 0, MAX_LEN);
 				_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
-					std::bind(&CClient::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
+					std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
 				//头部处理完成
 				_b_head_parse = true;
 				return;
@@ -145,7 +146,7 @@ void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_tran
 			if (bytes_transferred <= 0) {
 				::memset(_data, 0, MAX_LEN);
 				_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
-					std::bind(&CClient::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
+					std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
 				return;
 			}
 			continue;
@@ -159,7 +160,7 @@ void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_tran
 			_recv_msg_node->_cur_len += bytes_transferred;
 			::memset(_data, 0, MAX_LEN);
 			_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
-				std::bind(&CClient::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
+				std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
 			return;
 		}
 		memcpy(_recv_msg_node->_data + _recv_msg_node->_cur_len, _data + copy_len, remain_msg);
@@ -189,21 +190,21 @@ void CClient::HandleRead(const boost::system::error_code& err, size_t bytes_tran
 		if (bytes_transferred <= 0) {
 			::memset(_data, 0, MAX_LEN);
 			_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
-				std::bind(&CClient::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
+				std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
 			return;
 		}
 		continue;
 	}
 }
 
-void CClient::HandleWrite(const boost::system::error_code& err,
-	std::shared_ptr<CClient> shared_self)
+void CSession::HandleWrite(const boost::system::error_code& err,
+	std::shared_ptr<CSession> shared_self)
 {
 	if (err)
 	{
 		std::cout << "Handle Write failed!, Err msg: " << err.message() << std::endl;
 		Close();
-		_server->ClearSession(_uuid);
+		_server->ClearSession(_session_uid);
 		return;
 	}
 
@@ -216,12 +217,12 @@ void CClient::HandleWrite(const boost::system::error_code& err,
 		boost::asio::async_write(
 			_socket,
 			boost::asio::buffer(msg_node->_data, msg_node->_total_len),
-			std::bind(&CClient::HandleWrite, this, std::placeholders::_1, shared_self)
+			std::bind(&CSession::HandleWrite, this, std::placeholders::_1, shared_self)
 		);
 	}
 }
 
-void CClient::ProcessMessage(std::shared_ptr<MsgNode> msg_node)
+void CSession::ProcessMessage(std::shared_ptr<MsgNode> msg_node)
 {
 	NetworkMessage message;
 	try
@@ -257,18 +258,18 @@ void CClient::ProcessMessage(std::shared_ptr<MsgNode> msg_node)
 	}
 }
 
-void CClient::HandlePlayerJoin()
+void CSession::HandlePlayerJoin()
 {
 	auto rsp = nlohmann::json{
 		{"Type", PlayerJoin},
-		{"PlayerId", _uuid}
+		{"PlayerId", _session_uid}
 	};
 
 	Send(rsp.dump());
-	std::cout << "PlayerJoin, PlayerId: " << _uuid << std::endl;
+	std::cout << "PlayerJoin, PlayerId: " << _session_uid << std::endl;
 }
 
-void CClient::HandleSendPosition(NetworkMessage message)
+void CSession::HandleSendPosition(NetworkMessage message)
 {
 	_postion = message.Position;
 	if (!(message.Position.x == 0 && message.Position.y == 0))
@@ -280,14 +281,19 @@ void CClient::HandleSendPosition(NetworkMessage message)
 	_server->HandlePlayerPosition(shared_from_this());
 }
 
-void CClient::HandleRemoveFood(std::string foodId)
+void CSession::HandleRemoveFood(std::string foodId)
 {
 	std::cout << "食物移除: " << foodId << std::endl;
 	_server->HandleRemoveFood(foodId, shared_from_this());
 }
 
-void CClient::HandlePlayerVomit(VomitData vomidData)
+void CSession::HandlePlayerVomit(VomitData vomidData)
 {
 	std::cout << "玩家 " << vomidData.PlayerId << "吐球，质量：" << vomidData.Mass << std::endl;
 	_server->HandlePlayerVomit(vomidData);
+}
+
+LogicNode::LogicNode(std::shared_ptr<CSession> client, std::shared_ptr<RecvNode> node)
+	: _client(client), _recvnode(node)
+{
 }
