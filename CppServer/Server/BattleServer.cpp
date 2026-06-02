@@ -1,5 +1,6 @@
 ﻿#include "CServer.h"
 #include "AsioIOServicePool.h"
+#include "LogicSystem.h"
 
 #include <boost/asio.hpp>
 #include <csignal>
@@ -16,6 +17,7 @@ int main()
 
 		boost::asio::io_context ioc;
 		auto server = std::make_shared<CServer>(ioc, 8888);
+		LogicSystem::GetInstance().SetServer(server);
 
 		boost::asio::signal_set signals(ioc, SIGINT, SIGTERM);
 		signals.async_wait([&ioc, &pool](auto, auto) {
