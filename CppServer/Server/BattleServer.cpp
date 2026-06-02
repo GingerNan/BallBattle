@@ -23,7 +23,7 @@ int main()
 			pool.Stop();
 			});
 
-		ioc.run();	// 在使用异步模式时，要run()
+		ioc.run();	// 在使用异步模式时,要run()
 	}
 	catch (std::exception& e)
 	{

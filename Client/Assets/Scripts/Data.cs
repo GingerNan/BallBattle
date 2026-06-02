@@ -20,7 +20,7 @@ namespace Server
     // 消息类型
     public enum MessageType
     {
-        PlayerJoin,
+        PlayerJoin = 1001,
         GiveThePlayerId,
         SendPosition,       // 客户端发送位置和状态
         SyncPositions,      // 服务器同步所有玩家位置

@@ -121,7 +121,7 @@ void LogicSystem::HandleSendPosition(std::shared_ptr<CSession> session, const sh
 	auto player = PlayerManager::GetInstance().FindPlayerById(session->GetPlayerId());
 	if (!player)
 	{
-		std::cout << "Not Fund Player，PlayerId: " << session->GetPlayerId() << std::endl;
+		std::cout << "Not Fund Player,PlayerId: " << session->GetPlayerId() << std::endl;
 		return;
 	}
 

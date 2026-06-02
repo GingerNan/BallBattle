@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -24,6 +25,9 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     
     private List<byte> _receiveBuffer = new List<byte>();
     private int _expectedBodyLength = -1;
+    private int _expectedMessageId = -1;
+    private const int MessageHeaderLength = 4;
+    private const int MaxMessageBodyLength = ushort.MaxValue;
 
     #region 生命周期
 
@@ -130,7 +134,7 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     /// 发送消息到服务器
     /// </summary>
     /// <param name="msg"></param>
-    private void Send(string msg)
+    private void Send(NetworkMessage message)
     {
         try
         {
@@ -139,16 +143,24 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                 return;
             }
             
+            string msg = JsonConvert.SerializeObject(message);
             byte[] bodyData = Encoding.UTF8.GetBytes(msg);
             int bodyLength = bodyData.Length;
+
+            if (bodyLength > MaxMessageBodyLength)
+            {
+                Debug.Log($"消息体过长: {bodyLength}");
+                return;
+            }
             
-            // 小端序
-            byte[] headData = BitConverter.GetBytes(bodyLength);
+            short messageId = IPAddress.HostToNetworkOrder((short)message.Type);
+            short messageLength = IPAddress.HostToNetworkOrder((short)bodyLength);
             
             // 合并消息头和消息体
-            byte[] totalData = new byte[headData.Length + bodyData.Length];
-            Buffer.BlockCopy(headData, 0, totalData, 0, headData.Length);
-            Buffer.BlockCopy(bodyData, 0, totalData, headData.Length, bodyData.Length);
+            byte[] totalData = new byte[MessageHeaderLength + bodyData.Length];
+            Buffer.BlockCopy(BitConverter.GetBytes(messageId), 0, totalData, 0, 2);
+            Buffer.BlockCopy(BitConverter.GetBytes(messageLength), 0, totalData, 2, 2);
+            Buffer.BlockCopy(bodyData, 0, totalData, MessageHeaderLength, bodyData.Length);
             
             clientSocket.Send(totalData);
         }
@@ -195,16 +207,17 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     {
         try
         {
-            while (_receiveBuffer.Count >= 4)
+            while (_receiveBuffer.Count >= MessageHeaderLength)
             {
-                // 如果还没有解析出消息体长度，先解析消息头
+                // 如果还没有解析出消息头，先解析消息Id和消息体长度
                 if (_expectedBodyLength == -1)
                 {
-                    byte[] headBytes = _receiveBuffer.GetRange(0, 4).ToArray();
-                    _expectedBodyLength = BitConverter.ToInt32(headBytes, 0);
+                    byte[] headBytes = _receiveBuffer.GetRange(0, MessageHeaderLength).ToArray();
+                    _expectedMessageId = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(headBytes, 0));
+                    _expectedBodyLength = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(headBytes, 2));
                     
                     // 添加长度验证
-                    if (_expectedBodyLength < 0 || _expectedBodyLength > 10 * 1024 * 1024)  // 限制10MB
+                    if (_expectedBodyLength < 0 || _expectedBodyLength > MaxMessageBodyLength)
                     {
                         Debug.Log($"无效的消息长度: {_expectedBodyLength}");
                         Disconnect();
@@ -213,18 +226,19 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                 }
 
                 // 判断是否是一条完整的消息
-                if (_receiveBuffer.Count >=  4 + _expectedBodyLength)
+                if (_receiveBuffer.Count >=  MessageHeaderLength + _expectedBodyLength)
                 {
                     // 提取消息体
-                    byte[] bodyBytes = _receiveBuffer.GetRange(4, _expectedBodyLength).ToArray();
+                    byte[] bodyBytes = _receiveBuffer.GetRange(MessageHeaderLength, _expectedBodyLength).ToArray();
                     string msg = Encoding.UTF8.GetString(bodyBytes);
                         
                     // 实际处理消息
-                    ProcessMessage(msg);
+                    ProcessMessage(_expectedMessageId, msg);
                         
                     // 从缓冲区移除已处理数据
-                    _receiveBuffer.RemoveRange(0, 4 + _expectedBodyLength);
+                    _receiveBuffer.RemoveRange(0, MessageHeaderLength + _expectedBodyLength);
                     _expectedBodyLength = -1;
+                    _expectedMessageId = -1;
                 }
                 else
                 {
@@ -243,12 +257,15 @@ public class NetworkManager : MonoSingleton<NetworkManager>
     /// <summary>
     /// 添加到消息队列
     /// </summary>
+    /// <param name="messageId"></param>
     /// <param name="msg"></param>
-    private void ProcessMessage(string msg)
+    private void ProcessMessage(int messageId, string msg)
     {
         try
         {
             NetworkMessage networkMessage = JsonConvert.DeserializeObject<NetworkMessage>(msg);
+            Debug.Log($"收到的消息，消息id:{messageId}");
+            networkMessage.Type = (MessageType)messageId;
             lock (queueLock)
             {
                 messageQueue.Enqueue(networkMessage);
@@ -348,8 +365,7 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                 //PlayerId = 
             };
             
-            string jsonMsg = JsonConvert.SerializeObject(networkMessage);
-            Send(jsonMsg);
+            Send(networkMessage);
             Debug.Log($"发送食物被吃掉消息:{foodId}");
         }
         catch (Exception e)
@@ -398,7 +414,7 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                 }
             };
             
-            Send(JsonConvert.SerializeObject(message));
+            Send(message);
         }
         catch (Exception e)
         {
@@ -426,7 +442,7 @@ public class NetworkManager : MonoSingleton<NetworkManager>
                 VomitData = vomitData,
             };
             
-            Send(JsonConvert.SerializeObject(message));
+            Send(message);
             Debug.Log($"发送吐球消息");
         }
         catch (Exception e)

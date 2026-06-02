@@ -127,7 +127,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 			std::cout << "Network Message received Id: " << msg_id << ", size: " << data_len << std::endl;
 
 			_recv_msg_node = std::make_shared<RecvNode>(msg_id, data_len);
-			//消息的长度小于头部规定的长度，说明数据未收全，则先将部分消息放到接收节点里
+			//消息的长度小于头部规定的长度,说明数据未收全,则先将部分消息放到接收节点里
 			if (bytes_transferred < data_len) {
 				memcpy(_recv_msg_node->_data + _recv_msg_node->_cur_len, _data + copy_len, bytes_transferred);
 				_recv_msg_node->_cur_len += static_cast<short>(bytes_transferred);
@@ -145,7 +145,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 			bytes_transferred -= data_len;
 			_recv_msg_node->_data[_recv_msg_node->_total_len] = '\0';
 
-			// 收到完整的消息，处理消息
+			// 收到完整的消息,处理消息
 			LogicSystem::GetInstance().PostMsgToQue(std::make_shared<LogicNode>(shared_from_this(), _recv_msg_node));
 			
 			//继续轮询剩余未处理数据
@@ -160,7 +160,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 			continue;
 		}
 
-		//已经处理完头部，处理上次未接受完的消息数据
+		//已经处理完头部,处理上次未接受完的消息数据
 		//接收的数据仍不足剩余未处理的
 		int remain_msg = _recv_msg_node->_total_len - _recv_msg_node->_cur_len;
 		if (bytes_transferred < remain_msg) {
