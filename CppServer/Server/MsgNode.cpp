@@ -9,7 +9,7 @@ RecvNode::RecvNode(short msg_id, short max_len)
 *  | 2字节	|  2字节    | N字节 |
 *  | msg_id | data_len |  data |
 */
-SendNode::SendNode(const char* msg, short msg_id, short max_len)
+SendNode::SendNode(short msg_id, const char* msg, short max_len)
 	: MsgNode(max_len + HEAD_TOTAL_LEN), _msg_id(msg_id)
 {
 	//先发送id, 转为网络字节序

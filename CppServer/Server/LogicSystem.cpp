@@ -1,5 +1,8 @@
 #include "LogicSystem.h"
 #include "CServer.h"
+#include "PlayerManager.h"
+#include "Player.h"
+
 #include <iostream>
 
 namespace
@@ -115,11 +118,18 @@ void LogicSystem::HandleSendPosition(std::shared_ptr<CSession> session, const sh
 		return;
 	}
 
-	session->_postion = message.Position;
+	auto player = PlayerManager::GetInstance().FindPlayerById(session->GetPlayerId());
+	if (!player)
+	{
+		std::cout << "没有找到玩家，PlayerId: " << session->GetPlayerId() << std::endl;
+		return;
+	}
+
+	player->SetPosition(message.Position);
 	if (!(message.Position.x == 0 && message.Position.y == 0))
 	{
-		session->_balls = message.PlayerPosition.Balls;
-		session->_total_mass = message.PlayerPosition.TotalMass;
+		player->SetBalls(message.PlayerPosition.Balls);
+		player->SetTotalMass(message.PlayerPosition.TotalMass);
 	}
 
 	_server->HandlePlayerPosition(session);

@@ -22,7 +22,7 @@ public:
 	void Start();
 	void Close();
 
-	void Send(short msg_id, char* msg, int msg_len);
+	void Send(short msg_id, char* msg, short msg_len);
 	void Send(short msg_id, std::string msg);
 
 	void BindPlayer(std::string playerId);

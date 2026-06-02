@@ -22,8 +22,8 @@ struct MsgNode
 		_cur_len = 0;
 	}
 
-	int _cur_len;
-	int _total_len;
+	short _cur_len;
+	short _total_len;
 	char* _data;
 };
 
@@ -40,7 +40,7 @@ class SendNode : public MsgNode
 {
 	friend class LogicSystem;
 public:
-	SendNode(const char* msg, short msg_id, short max_len);
+	SendNode(short msg_id, const char* msg, short max_len);
 private:
 	short _msg_id;
 };

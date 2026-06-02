@@ -5,7 +5,7 @@
 #include <boost/uuid.hpp>
 
 CSession::CSession(boost::asio::io_context& ioc, CServer* server)
-	: _socket(ioc), _server(server), _b_close(false), _b_head_parse(false), _total_mass(0.0f)
+	: _socket(ioc), _server(server), _b_close(false), _b_head_parse(false)
 {
 	boost::uuids::uuid uuid = boost::uuids::random_generator()();
 	_session_uid = boost::uuids::to_string(uuid);
@@ -34,10 +34,10 @@ void CSession::Close()
 	_socket.close();
 }
 
-void CSession::Send(short msg_id, char* msg, int max_len)
+void CSession::Send(short msg_id, char* msg, short max_len)
 {
 	std::lock_guard<std::mutex> lock(_send_mtx);
-	int send_que_size = _send_que.size();
+	size_t send_que_size = _send_que.size();
 	if (send_que_size > MAX_SEND_QUE)
 	{
 		std::cout << "Session: " << _session_uid << " send que fulled, size: " << MAX_SEND_QUE << std::endl;
@@ -60,7 +60,7 @@ void CSession::Send(short msg_id, char* msg, int max_len)
 
 void CSession::Send(short msg_id, std::string msg)
 {
-	Send(msg_id, msg.data(), msg.size());
+	Send(msg_id, msg.data(), static_cast<short>(msg.size()));
 }
 
 void CSession::BindPlayer(std::string playerId)
@@ -95,7 +95,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 			if (bytes_transferred + _recv_head_node->_cur_len < HEAD_TOTAL_LEN)
 			{
 				memcpy(_recv_head_node->_data + _recv_head_node->_cur_len, _data + copy_len, bytes_transferred);
-				_recv_head_node->_cur_len += bytes_transferred;
+				_recv_head_node->_cur_len += static_cast<short>(bytes_transferred);
 				::memset(_data, 0, MAX_LEN);
 				_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
 					std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
@@ -130,7 +130,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 			//消息的长度小于头部规定的长度，说明数据未收全，则先将部分消息放到接收节点里
 			if (bytes_transferred < data_len) {
 				memcpy(_recv_msg_node->_data + _recv_msg_node->_cur_len, _data + copy_len, bytes_transferred);
-				_recv_msg_node->_cur_len += bytes_transferred;
+				_recv_msg_node->_cur_len += static_cast<short>(bytes_transferred);
 				::memset(_data, 0, MAX_LEN);
 				_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
 					std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
@@ -165,7 +165,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 		int remain_msg = _recv_msg_node->_total_len - _recv_msg_node->_cur_len;
 		if (bytes_transferred < remain_msg) {
 			memcpy(_recv_msg_node->_data + _recv_msg_node->_cur_len, _data + copy_len, bytes_transferred);
-			_recv_msg_node->_cur_len += bytes_transferred;
+			_recv_msg_node->_cur_len += static_cast<short>(bytes_transferred);
 			::memset(_data, 0, MAX_LEN);
 			_socket.async_read_some(boost::asio::buffer(_data, MAX_LEN),
 				std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
