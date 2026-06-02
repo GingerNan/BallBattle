@@ -5,6 +5,10 @@ RecvNode::RecvNode(short msg_id, short max_len)
 {
 }
 
+/**
+*  | 2字节	|  2字节    | N字节 |
+*  | msg_id | data_len |  data |
+*/
 SendNode::SendNode(const char* msg, short msg_id, short max_len)
 	: MsgNode(max_len + HEAD_TOTAL_LEN), _msg_id(msg_id)
 {

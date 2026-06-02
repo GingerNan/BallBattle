@@ -51,7 +51,7 @@ struct PlayerPostionData
 
 struct NetworkMessage
 {
-	MessageType Type = PlayerJoin;
+	MessageType Type = MSG_PLAYER_JOIN;
 
 	// 玩家相关
 	std::string PlayerId;

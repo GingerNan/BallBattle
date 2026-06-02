@@ -8,6 +8,8 @@
 class CServer;
 class CSession : public std::enable_shared_from_this<CSession>
 {
+	friend class LogicSystem;
+
 public:
 	CSession(boost::asio::io_context& ioc, CServer* server);
 	~CSession();
@@ -23,19 +25,6 @@ public:
 	// 发送消息，msg必须保证在发送完成前有效
 	void Send(char* msg, int max_len);
 	void Send(std::string msg);
-private:
-	// 玩家初次连接
-	void HandlePlayerJoin();
-
-	// 处理玩家位置和状态
-	void HandleSendPosition(NetworkMessage message);
-
-	// 处理移除食物
-	void HandleRemoveFood(std::string foodId);
-
-	// 处理玩家吐球
-	void HandlePlayerVomit(VomitData vomidData);
-
 private:
 	void HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
 		std::shared_ptr<CSession> shared_self);
@@ -56,7 +45,7 @@ private:
 	std::mutex _send_mtx;
 
 	// 收到的消息结构
-	std::shared_ptr<MsgNode> _recv_msg_node;
+	std::shared_ptr<RecvNode> _recv_msg_node;
 	bool _b_head_parse;
 	std::shared_ptr<MsgNode> _recv_head_node;
 	std::mutex _session_mtx;

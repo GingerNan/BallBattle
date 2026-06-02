@@ -1,5 +1,23 @@
 #include "LogicSystem.h"
+#include "CServer.h"
 #include <iostream>
+
+namespace
+{
+bool ParseNetworkMessage(const std::string& msg_data, NetworkMessage& message)
+{
+	try
+	{
+		message = nlohmann::json::parse(msg_data).get<NetworkMessage>();
+		return true;
+	}
+	catch (const nlohmann::json::exception& e)
+	{
+		std::cout << "Network message parse failed: " << e.what() << std::endl;
+		return false;
+	}
+}
+}
 
 LogicSystem::LogicSystem() : _bStop(false), _server(nullptr)
 {
@@ -9,7 +27,10 @@ LogicSystem::LogicSystem() : _bStop(false), _server(nullptr)
 
 LogicSystem::~LogicSystem()
 {
-	_bStop = true;
+	{
+		std::lock_guard lock(_mtx);
+		_bStop = true;
+	}
 	_cv.notify_one();
 	if (_worker_thread.joinable())
 	{
@@ -37,39 +58,25 @@ void LogicSystem::DealMsg()
 {
 	for (;;)
 	{
-		std::unique_lock lock(_mtx);
-		_cv.wait(lock, [this]() {
-			return _msg_que.empty() && !_bStop;
-			});
-
-		// 退出线程之前，把队列里剩余的消息处理完
-		if (_bStop)
+		std::shared_ptr<LogicNode> msg_node;
 		{
-			while (!_msg_que.empty())
-			{
-				auto msg_node = _msg_que.front();
-				auto call_back_iter = _handlers.find(msg_node->_recvnode->_msg_id);
-				if (call_back_iter == _handlers.end())
-				{
-					_msg_que.pop();
-					continue;
-				}
+			std::unique_lock lock(_mtx);
+			_cv.wait(lock, [this]() {
+				return !_msg_que.empty() || _bStop;
+				});
 
-				call_back_iter->second(
-					msg_node->_client,
-					msg_node->_recvnode->_msg_id,
-					std::string(msg_node->_recvnode->_data, msg_node->_recvnode->_total_len)
-				);
-				_msg_que.pop();
+			if (_bStop && _msg_que.empty())
+			{
+				break;
 			}
-			break;
+
+			msg_node = _msg_que.front();
+			_msg_que.pop();
 		}
 
-		auto msg_node = _msg_que.front();
 		auto call_back_iter = _handlers.find(msg_node->_recvnode->_msg_id);
 		if (call_back_iter == _handlers.end())
 		{
-			_msg_que.pop();
 			continue;
 		}
 
@@ -78,7 +85,6 @@ void LogicSystem::DealMsg()
 			msg_node->_recvnode->_msg_id,
 			std::string(msg_node->_recvnode->_data, msg_node->_recvnode->_total_len)
 		);
-		_msg_que.pop();
 	}
 }
 
@@ -92,32 +98,53 @@ void LogicSystem::RegisterMsgHandlers()
 
 void LogicSystem::HandlePlayerJoin(std::shared_ptr<CSession> session, const short&, const std::string&)
 {
-	// TODO playerid因该有一个管理playerid的系统来生成和分配，这里先用session id代替
-	auto rsp = nlohmann::json{
-		{"Type", MSG_PLAYER_JOIN},
-		{"PlayerId", session->GetSessionUid()}
-	};
+	NetworkMessage rsp;
+	rsp.Type = MSG_PLAYER_JOIN;
+	rsp.PlayerId = session->GetSessionUid();
 
-	session->Send(rsp.dump());
+	nlohmann::json json_msg = rsp;
+	session->Send(json_msg.dump());
 	std::cout << "PlayerJoin, PlayerId: " << session->GetSessionUid() << std::endl;
 }
 
-void LogicSystem::HandleSendPosition(std::shared_ptr<CSession> session, const short&, const std::string&)
+void LogicSystem::HandleSendPosition(std::shared_ptr<CSession> session, const short&, const std::string& msg_data)
 {
-	_postion = message.Position;
-	if (!(message.Position.x == 0 && message.Position.y == 0))
+	NetworkMessage message;
+	if (!ParseNetworkMessage(msg_data, message))
 	{
-		_balls = message.PlayerPosition.Balls;
-		_total_mass = message.PlayerPosition.TotalMass;
+		return;
 	}
 
-	_server->HandlePlayerPosition(shared_from_this());
+	session->_postion = message.Position;
+	if (!(message.Position.x == 0 && message.Position.y == 0))
+	{
+		session->_balls = message.PlayerPosition.Balls;
+		session->_total_mass = message.PlayerPosition.TotalMass;
+	}
+
+	_server->HandlePlayerPosition(session);
 }
 
-void LogicSystem::HandleRemoveFood(std::shared_ptr<CSession> session, const short&, const std::string&)
+void LogicSystem::HandleRemoveFood(std::shared_ptr<CSession> session, const short&, const std::string& msg_data)
 {
+	NetworkMessage message;
+	if (!ParseNetworkMessage(msg_data, message))
+	{
+		return;
+	}
+
+	std::cout << "Remove food: " << message.FoodId << std::endl;
+	_server->HandleRemoveFood(message.FoodId, session);
 }
 
-void LogicSystem::HandlePlayerVomit(std::shared_ptr<CSession> session, const short&, const std::string&)
+void LogicSystem::HandlePlayerVomit(std::shared_ptr<CSession> session, const short&, const std::string& msg_data)
 {
+	NetworkMessage message;
+	if (!ParseNetworkMessage(msg_data, message))
+	{
+		return;
+	}
+
+	std::cout << "Player " << message.VomitData.PlayerId << " vomit, mass: " << message.VomitData.Mass << std::endl;
+	_server->HandlePlayerVomit(message.VomitData);
 }

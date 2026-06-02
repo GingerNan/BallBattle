@@ -1,5 +1,6 @@
 ﻿#include "CSession.h"
 #include "CServer.h"
+#include "LogicSystem.h"
 #include <iostream>
 #include <boost/uuid.hpp>
 
@@ -76,10 +77,13 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 
 	//已经移动的字符数
 	int copy_len = 0;
-	while (bytes_transferred > 0) {
-		if (!_b_head_parse) {
-			//收到的数据不足头部大小
-			if (bytes_transferred + _recv_head_node->_cur_len < HEAD_LEN) {
+	while (bytes_transferred > 0)
+	{
+		if (!_b_head_parse)
+		{
+			// 处理消息头部
+			if (bytes_transferred + _recv_head_node->_cur_len < HEAD_TOTAL_LEN)
+			{
 				memcpy(_recv_head_node->_data + _recv_head_node->_cur_len, _data + copy_len, bytes_transferred);
 				_recv_head_node->_cur_len += bytes_transferred;
 				::memset(_data, 0, MAX_LEN);
@@ -87,26 +91,32 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 					std::bind(&CSession::HandleRead, this, std::placeholders::_1, std::placeholders::_2, shared_self));
 				return;
 			}
-			//收到的数据比头部多
-			//头部剩余未复制的长度
-			int head_remain = HEAD_LEN - _recv_head_node->_cur_len;
+
+			// 处理消息内容
+			int head_remain = HEAD_TOTAL_LEN - _recv_head_node->_cur_len;
 			memcpy(_recv_head_node->_data + _recv_head_node->_cur_len, _data + copy_len, head_remain);
-			//更新已处理的data长度和剩余未处理的长度
 			copy_len += head_remain;
 			bytes_transferred -= head_remain;
-			//获取头部数据
+
+			// 获取消息Id
+			short msg_id = 0;
+			memcpy(&msg_id, _recv_head_node->_data, HEAD_ID_LEN);
+			msg_id = boost::asio::detail::socket_ops::network_to_host_short(msg_id);
+
+			// 获取消息长度
 			short data_len = 0;
-			memcpy(&data_len, _recv_head_node->_data, HEAD_LEN);
+			memcpy(&data_len, _recv_head_node->_data + HEAD_ID_LEN, HEAD_DATA_LEN);
 			data_len = boost::asio::detail::socket_ops::network_to_host_short(data_len);
-			std::cout << "data_len is " << data_len << std::endl;
+
 			//头部长度非法
-			if (data_len > MAX_LEN) {
+			if (data_len < 0 || data_len > MAX_LEN) {
 				std::cout << "invalid data length is " << data_len << std::endl;
 				_server->ClearSession(_session_uid);
 				return;
 			}
+			std::cout << "收到的消息Id: " << msg_id << ", 消息长度: " << data_len << std::endl;
 
-			_recv_msg_node = std::make_shared<MsgNode>(data_len);
+			_recv_msg_node = std::make_shared<RecvNode>(msg_id, data_len);
 			//消息的长度小于头部规定的长度，说明数据未收全，则先将部分消息放到接收节点里
 			if (bytes_transferred < data_len) {
 				memcpy(_recv_msg_node->_data + _recv_msg_node->_cur_len, _data + copy_len, bytes_transferred);
@@ -124,21 +134,9 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 			copy_len += data_len;
 			bytes_transferred -= data_len;
 			_recv_msg_node->_data[_recv_msg_node->_total_len] = '\0';
-			//std::cout << "receive data is " << _recv_msg_node->_data << std::endl;
-			//此处可以调用Send发送测试
-			//Send(_recv_msg_node->_data, _recv_msg_node->_total_len);
-			
-			//Json::Value data;
-			//Json::Reader reader;
-			//reader.parse(std::string(_recv_msg_node->_data, _recv_msg_node->_total_len), data);
-			//std::cout << data.toStyledString() << std::endl;
 
-			//std::string new_str = "server has received msg, msg data: " + data["data"].asString();
-			//Json::Value return_data;
-			//return_data["id"] = data["id"].asInt();
-			//return_data["data"] = new_str;
-			//Send(return_data.toStyledString());
-			ProcessMessage(_recv_msg_node);
+			// 收到完整的消息，处理消息
+			LogicSystem::GetInstance().PostMsgToQue(std::make_shared<LogicNode>(shared_from_this(), _recv_msg_node));
 			
 			//继续轮询剩余未处理数据
 			_b_head_parse = false;
@@ -168,21 +166,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 		bytes_transferred -= remain_msg;
 		copy_len += remain_msg;
 		_recv_msg_node->_data[_recv_msg_node->_total_len] = '\0';
-		//std::cout << "receive data is " << _recv_msg_node->_data << std::endl;
-		//此处可以调用Send发送测试
-		//Send(_recv_msg_node->_data, _recv_msg_node->_total_len);
-
-		//Json::Value data;
-		//Json::Reader reader;
-		//reader.parse(std::string(_recv_msg_node->_data, _recv_msg_node->_total_len), data);
-		//std::cout << data.toStyledString() << std::endl;
-
-		//std::string new_str = "server has received msg, msg data: " + data["data"].asString();
-		//Json::Value return_data;
-		//return_data["id"] = data["id"].asInt();
-		//return_data["data"] = new_str;
-		//Send(return_data.toStyledString());
-		ProcessMessage(_recv_msg_node);
+		LogicSystem::GetInstance().PostMsgToQue(std::make_shared<LogicNode>(shared_from_this(), _recv_msg_node));
 
 		//继续轮询剩余未处理数据
 		_b_head_parse = false;
@@ -220,77 +204,6 @@ void CSession::HandleWrite(const boost::system::error_code& err,
 			std::bind(&CSession::HandleWrite, this, std::placeholders::_1, shared_self)
 		);
 	}
-}
-
-void CSession::ProcessMessage(std::shared_ptr<MsgNode> msg_node)
-{
-	NetworkMessage message;
-	try
-	{
-		const std::string payload(msg_node->_data, msg_node->_total_len);
-		message = nlohmann::json::parse(payload).get<NetworkMessage>();
-	}
-	catch (const nlohmann::json::exception& e)
-	{
-		std::cout << "网络消息解析失败：" << e.what() << std::endl;
-		return;
-	}
-
-	switch (message.Type)
-	{
-	case PlayerJoin:
-		HandlePlayerJoin();
-		break;
-	case SendPosition:
-		HandleSendPosition(message);
-		break;
-	case RemoveFood:
-		HandleRemoveFood(message.FoodId);
-		break;
-	case PlayerVomit:
-		HandlePlayerVomit(message.VomitData);
-		break;
-	case PlayerLeave:
-		std::cout << "PlayerLeave, PlayerId: " << message.PlayerId << std::endl;
-		break;
-	default:
-		break;
-	}
-}
-
-void CSession::HandlePlayerJoin()
-{
-	auto rsp = nlohmann::json{
-		{"Type", PlayerJoin},
-		{"PlayerId", _session_uid}
-	};
-
-	Send(rsp.dump());
-	std::cout << "PlayerJoin, PlayerId: " << _session_uid << std::endl;
-}
-
-void CSession::HandleSendPosition(NetworkMessage message)
-{
-	_postion = message.Position;
-	if (!(message.Position.x == 0 && message.Position.y == 0))
-	{
-		_balls = message.PlayerPosition.Balls;
-		_total_mass = message.PlayerPosition.TotalMass;
-	}
-
-	_server->HandlePlayerPosition(shared_from_this());
-}
-
-void CSession::HandleRemoveFood(std::string foodId)
-{
-	std::cout << "食物移除: " << foodId << std::endl;
-	_server->HandleRemoveFood(foodId, shared_from_this());
-}
-
-void CSession::HandlePlayerVomit(VomitData vomidData)
-{
-	std::cout << "玩家 " << vomidData.PlayerId << "吐球，质量：" << vomidData.Mass << std::endl;
-	_server->HandlePlayerVomit(vomidData);
 }
 
 LogicNode::LogicNode(std::shared_ptr<CSession> client, std::shared_ptr<RecvNode> node)
