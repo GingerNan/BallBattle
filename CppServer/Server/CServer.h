@@ -11,10 +11,13 @@ public:
 
 	void ClearSession(std::string uuid);
 public:
+	// 同步玩家位置给其他玩家
 	void HandlePlayerPosition(std::shared_ptr<CSession> client);
 
+	// 移除球
 	void HandleRemoveFood(std::string foodId, std::shared_ptr<CSession> client);
 
+	// 玩家吐球
 	void HandlePlayerVomit(VomitData vomitData);
 private:
 	// 发送新连接客户端的标识

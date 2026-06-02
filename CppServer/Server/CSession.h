@@ -24,6 +24,9 @@ public:
 
 	void Send(short msg_id, char* msg, int msg_len);
 	void Send(short msg_id, std::string msg);
+
+	void BindPlayer(std::string playerId);
+	std::string GetPlayerId();
 private:
 	void HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
 		std::shared_ptr<CSession> shared_self);
@@ -47,10 +50,8 @@ private:
 	std::shared_ptr<MsgNode> _recv_head_node;
 	std::mutex _session_mtx;
 
-	//玩家状态信息
-	Vector2 _postion;
-	std::vector<BallData> _balls;
-	float _total_mass;
+	// 玩家Id
+	std::string _playerId;
 };
 
 class LogicNode

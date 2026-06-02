@@ -17,6 +17,7 @@ public:
 	AsioIOServicePool& operator=(const AsioIOServicePool&) = delete;
 	~AsioIOServicePool();
 
+	// 获取io_service对象
 	boost::asio::io_context& GetIOService();
 
 	void Stop();

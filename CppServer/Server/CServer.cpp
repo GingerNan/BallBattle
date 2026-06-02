@@ -53,7 +53,8 @@ void CServer::HandlePlayerVomit(VomitData vomitData)
 
 void CServer::SendPlayerId(std::shared_ptr<CSession> session)
 {
-	std::shared_ptr<Player> player = PlayerManager::GetInstance().CreatePlayer();
+	auto player = PlayerManager::GetInstance().CreatePlayer();
+	session->BindPlayer(player->GetId());
 
 	NetworkMessage msg;
 	msg.Type = MSG_GIVE_PLAYER_ID;
@@ -90,10 +91,10 @@ void CServer::SyncAllPositionsTosession(std::shared_ptr<CSession> session)
 
 void CServer::BroadcastPlayerPosition(std::shared_ptr<CSession> session)
 {
-	// TODO 先用 1 代替
-	auto player = PlayerManager::GetInstance().FindPlayerById("1");
+	auto player = PlayerManager::GetInstance().FindPlayerById(session->GetPlayerId());
+
 	PlayerPostionData postion;
-	postion.PlayerId = session->GetSessionUid();
+	postion.PlayerId = player->GetId();
 	postion.Balls = player->GetBalls();
 	postion.Position = player->GetPosition();
 	postion.TotalMass = player->GetTotalMass();

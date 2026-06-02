@@ -63,6 +63,16 @@ void CSession::Send(short msg_id, std::string msg)
 	Send(msg_id, msg.data(), msg.size());
 }
 
+void CSession::BindPlayer(std::string playerId)
+{
+	_playerId = playerId;
+}
+
+std::string CSession::GetPlayerId()
+{
+	return _playerId;
+}
+
 void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_transferred,
 	std::shared_ptr<CSession> shared_self)
 {
