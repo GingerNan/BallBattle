@@ -52,7 +52,7 @@ std::shared_ptr<FoodData> FoodManager::RemoveFood(std::string foodId)
 	if (num > 0)
 	{
 		auto newFood = GenerateFood();
-		std::cout << "生成新食物: " << newFood->FoodId << std::endl;
+		std::cout << "Generate New Food: " << newFood->FoodId << std::endl;
 		return newFood;
 	}
 	return nullptr;

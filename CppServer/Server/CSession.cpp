@@ -124,7 +124,7 @@ void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_tra
 				_server->ClearSession(_session_uid);
 				return;
 			}
-			std::cout << "收到的消息Id: " << msg_id << ", 消息长度: " << data_len << std::endl;
+			std::cout << "Network Message received Id: " << msg_id << ", size: " << data_len << std::endl;
 
 			_recv_msg_node = std::make_shared<RecvNode>(msg_id, data_len);
 			//消息的长度小于头部规定的长度，说明数据未收全，则先将部分消息放到接收节点里

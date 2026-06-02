@@ -32,7 +32,7 @@ void CServer::HandleRemoveFood(std::string foodId, std::shared_ptr<CSession> ses
 {
 	if (!FoodManager::GetInstance().IsFoodExist(foodId))
 	{
-		std::cout << "食物 " << foodId << " 不存在，可能被吃掉了" << std::endl;
+		std::cout << "Food " << foodId << " not fund!" << std::endl;
 		return;
 	}
 
@@ -63,7 +63,7 @@ void CServer::SendPlayerId(std::shared_ptr<CSession> session)
 	nlohmann::json json_msg = msg;
 	session->Send(MSG_GIVE_PLAYER_ID, json_msg.dump());
 
-	std::cout << "发送玩家ID给客户端， PlayerId: " << session->GetSessionUid() << std::endl;
+	std::cout << "SendPlayerId， PlayerId: " << session->GetSessionUid() << std::endl;
 }
 
 void CServer::SyncAllFoodsTosession(std::shared_ptr<CSession> session)
@@ -75,7 +75,7 @@ void CServer::SyncAllFoodsTosession(std::shared_ptr<CSession> session)
 
 	nlohmann::json json_msg = msg;
 	session->Send(MSG_SYNC_FOODS, json_msg.dump());
-	std::cout << "向客户端" << session->GetSessionUid() << " 同步食物，数量: " << foods.size() << std::endl;
+	std::cout << "SyncAllFoodsTosession， SessionUid: " << session->GetSessionUid() << "，Food Num: " << foods.size() << std::endl;
 }
 
 void CServer::SyncAllPositionsTosession(std::shared_ptr<CSession> session)
@@ -125,7 +125,7 @@ void CServer::BroadcastFoodGenerated(std::shared_ptr<FoodData> food)
 
 	nlohmann::json json_msg = msg;
 	Broadcast(MSG_GENERATE_FOOD, json_msg.dump());
-	std::cout << "广播生成食物：" << food->FoodId << std::endl;
+	//std::cout << "广播生成食物：" << food->FoodId << std::endl;
 }
 
 void CServer::BroadcastPlayerVomit(VomitData vomitData)
@@ -179,7 +179,7 @@ void CServer::HandleAccept(std::shared_ptr<CSession> newSeesion, const boost::sy
 	if (!err)
 	{
 		_sessions.insert({ newSeesion->GetSessionUid(), newSeesion });
-		std::cout << "有客户端连接上了服务器：" << newSeesion->GetSocket().remote_endpoint().address().to_string() << std::endl;
+		std::cout << "Accept Client：" << newSeesion->GetSocket().remote_endpoint().address().to_string() << std::endl;
 		newSeesion->Start();
 		SendPlayerId(newSeesion);
 		SyncAllFoodsTosession(newSeesion);
