@@ -60,7 +60,7 @@ void CServer::SendPlayerId(std::shared_ptr<CSession> session)
 	msg.PlayerId = player->GetId();
 
 	nlohmann::json json_msg = msg;
-	session->Send(json_msg.dump());
+	session->Send(MSG_GIVE_PLAYER_ID, json_msg.dump());
 
 	std::cout << "发送玩家ID给客户端， PlayerId: " << session->GetSessionUid() << std::endl;
 }
@@ -73,7 +73,7 @@ void CServer::SyncAllFoodsTosession(std::shared_ptr<CSession> session)
 	msg.Foods = foods;
 
 	nlohmann::json json_msg = msg;
-	session->Send(json_msg.dump());
+	session->Send(MSG_SYNC_FOODS, json_msg.dump());
 	std::cout << "向客户端" << session->GetSessionUid() << " 同步食物，数量: " << foods.size() << std::endl;
 }
 
@@ -85,7 +85,7 @@ void CServer::SyncAllPositionsTosession(std::shared_ptr<CSession> session)
 	msg.PlayerPositions = playerPositions;
 
 	nlohmann::json json_msg = msg;
-	session->Send(json_msg.dump());
+	session->Send(MSG_SYNC_POSITIONS, json_msg.dump());
 }
 
 void CServer::BroadcastPlayerPosition(std::shared_ptr<CSession> session)
@@ -103,7 +103,7 @@ void CServer::BroadcastPlayerPosition(std::shared_ptr<CSession> session)
 	message.PlayerPosition = postion;
 
 	nlohmann::json json_msg = message;
-	BroadcastToOthers(json_msg.dump(), session);
+	BroadcastToOthers(MSG_SEND_POSITION, json_msg.dump(), session);
 }
 
 void CServer::BroadcastFoodRemove(std::string foodId)
@@ -113,7 +113,7 @@ void CServer::BroadcastFoodRemove(std::string foodId)
 	msg.FoodId = foodId;
 
 	nlohmann::json json_msg = msg;
-	Broadcast(json_msg.dump());
+	Broadcast(MSG_REMOVE_FOOD, json_msg.dump());
 }
 
 void CServer::BroadcastFoodGenerated(std::shared_ptr<FoodData> food)
@@ -123,7 +123,7 @@ void CServer::BroadcastFoodGenerated(std::shared_ptr<FoodData> food)
 	msg.Food = *food;
 
 	nlohmann::json json_msg = msg;
-	Broadcast(json_msg.dump());
+	Broadcast(MSG_GENERATE_FOOD, json_msg.dump());
 	std::cout << "广播生成食物：" << food->FoodId << std::endl;
 }
 
@@ -137,28 +137,28 @@ void CServer::BroadcastPlayerVomit(VomitData vomitData)
 	msg.VomitData = vomitData;
 
 	nlohmann::json json_msg = msg;
-	Broadcast(json_msg.dump());
+	Broadcast(MSG_PLAYER_VOMIT, json_msg.dump());
 }
 
-void CServer::BroadcastToOthers(std::string msg, std::shared_ptr<CSession> exclude_session)
+void CServer::BroadcastToOthers(short msg_id, std::string msg, std::shared_ptr<CSession> exclude_session)
 {
 	for (auto& [uuid, session] : _sessions)
 	{
 		if (session == exclude_session || session->IsClose())
 			continue;
 
-		session->Send(msg);
+		session->Send(msg_id, msg);
 	}
 }
 
-void CServer::Broadcast(std::string msg)
+void CServer::Broadcast(short msg_id, std::string msg)
 {
 	for (auto& [uuid, session] : _sessions)
 	{
 		if (session->IsClose())
 			continue;
 
-		session->Send(msg);
+		session->Send(msg_id, msg);
 	}
 }
 

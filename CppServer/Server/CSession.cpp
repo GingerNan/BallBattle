@@ -34,7 +34,7 @@ void CSession::Close()
 	_socket.close();
 }
 
-void CSession::Send(char* msg, int max_len)
+void CSession::Send(short msg_id, char* msg, int max_len)
 {
 	std::lock_guard<std::mutex> lock(_send_mtx);
 	int send_que_size = _send_que.size();
@@ -44,7 +44,7 @@ void CSession::Send(char* msg, int max_len)
 		return;
 	}
 
-	_send_que.push(std::make_shared<MsgNode>(msg, max_len));
+	_send_que.push(std::make_shared<SendNode>(msg_id, msg, max_len));
 	if (send_que_size > 0)
 	{
 		return;
@@ -58,9 +58,9 @@ void CSession::Send(char* msg, int max_len)
 	);
 }
 
-void CSession::Send(std::string msg)
+void CSession::Send(short msg_id, std::string msg)
 {
-	Send(msg.data(), msg.size());
+	Send(msg_id, msg.data(), msg.size());
 }
 
 void CSession::HandleRead(const boost::system::error_code& err, size_t bytes_transferred,

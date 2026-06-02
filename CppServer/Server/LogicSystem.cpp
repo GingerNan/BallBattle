@@ -103,7 +103,7 @@ void LogicSystem::HandlePlayerJoin(std::shared_ptr<CSession> session, const shor
 	rsp.PlayerId = session->GetSessionUid();
 
 	nlohmann::json json_msg = rsp;
-	session->Send(json_msg.dump());
+	session->Send(MSG_PLAYER_JOIN, json_msg.dump());
 	std::cout << "PlayerJoin, PlayerId: " << session->GetSessionUid() << std::endl;
 }
 

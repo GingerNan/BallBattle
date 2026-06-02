@@ -35,9 +35,9 @@ private:
 
 	void BroadcastPlayerVomit(VomitData vomitData);
 
-	void BroadcastToOthers(std::string msg, std::shared_ptr<CSession> exclude_client);
+	void BroadcastToOthers(short msg_id, std::string msg, std::shared_ptr<CSession> exclude_client);
 
-	void Broadcast(std::string msg);
+	void Broadcast(short msg_id, std::string msg);
 private:
 	void StartAccpet();
 
