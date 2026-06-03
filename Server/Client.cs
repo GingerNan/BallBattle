@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Newtonsoft.Json;
@@ -14,6 +15,9 @@ namespace Server
         
         private List<byte> _receiveBuffer = new List<byte>();   // 累计接收消息的缓冲区
         private int _expectedBodyLength = -1;   // 期望消息长度
+        private int _expectedMessageId = -1;
+        private const int MessageHeaderLength = 4;
+        private const int MaxMessageBodyLength = short.MaxValue;
         
         // 玩家状态信息
         public Vector2 Position { get; set; } = new Vector2(0, 0);
@@ -89,11 +93,22 @@ namespace Server
             try
             {
                 byte[] bodyData = Encoding.UTF8.GetBytes(msg);
-                byte[] headerData = BitConverter.GetBytes(bodyData.Length);
+                int bodyLength = bodyData.Length;
+                if (bodyLength > MaxMessageBodyLength)
+                {
+                    Console.WriteLine($"消息体过长: {bodyLength}");
+                    return;
+                }
+
+                NetworkMessage message = JsonConvert.DeserializeObject<NetworkMessage>(msg);
+                short messageId = IPAddress.HostToNetworkOrder((short)message.Type);
+                short messageLength = IPAddress.HostToNetworkOrder((short)bodyLength);
+
                 // 合并消息头和消息体
-                byte[] totalData = new  byte[headerData.Length + bodyData.Length];
-                Buffer.BlockCopy(headerData, 0, totalData, 0, headerData.Length);
-                Buffer.BlockCopy(bodyData, 0, totalData, headerData.Length, bodyData.Length);
+                byte[] totalData = new  byte[MessageHeaderLength + bodyData.Length];
+                Buffer.BlockCopy(BitConverter.GetBytes(messageId), 0, totalData, 0, 2);
+                Buffer.BlockCopy(BitConverter.GetBytes(messageLength), 0, totalData, 2, 2);
+                Buffer.BlockCopy(bodyData, 0, totalData, MessageHeaderLength, bodyData.Length);
                 
                 Socket.BeginSend(totalData, 0, totalData.Length, SocketFlags.None, SendCallback, null);
             }
@@ -143,27 +158,36 @@ namespace Server
         {
             try
             {
-                while (_receiveBuffer.Count >= 4)
+                while (_receiveBuffer.Count >= MessageHeaderLength)
                 {
                     if (_expectedBodyLength == -1)
                     {
-                        byte[] headBytes = _receiveBuffer.GetRange(0, 4).ToArray();
-                        _expectedBodyLength = BitConverter.ToInt32(headBytes, 0);
+                        byte[] headBytes = _receiveBuffer.GetRange(0, MessageHeaderLength).ToArray();
+                        _expectedMessageId = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(headBytes, 0));
+                        _expectedBodyLength = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(headBytes, 2));
+
+                        if (_expectedBodyLength < 0 || _expectedBodyLength > MaxMessageBodyLength)
+                        {
+                            Console.WriteLine($"无效的消息长度: {_expectedBodyLength}");
+                            Disconnect();
+                            return;
+                        }
                     }
 
                     // 判断是否是一条完整的消息
-                    if (_receiveBuffer.Count >=  4 + _expectedBodyLength)
+                    if (_receiveBuffer.Count >=  MessageHeaderLength + _expectedBodyLength)
                     {
                         // 提取消息体
-                        byte[] bodyBytes = _receiveBuffer.GetRange(4, _expectedBodyLength).ToArray();
+                        byte[] bodyBytes = _receiveBuffer.GetRange(MessageHeaderLength, _expectedBodyLength).ToArray();
                         string msg = Encoding.UTF8.GetString(bodyBytes);
                         
                         // 实际处理消息
-                        ProcessMessage(msg);
+                        ProcessMessage(_expectedMessageId, msg);
                         
                         // 从缓冲区移除已处理数据
-                        _receiveBuffer.RemoveRange(0, 4 + _expectedBodyLength);
+                        _receiveBuffer.RemoveRange(0, MessageHeaderLength + _expectedBodyLength);
                         _expectedBodyLength = -1;
+                        _expectedMessageId = -1;
                     }
                     else
                     {
@@ -183,9 +207,10 @@ namespace Server
         /// 实际处理消息方法
         /// </summary>
         /// <param name="msg"></param>
-        private void ProcessMessage(string msg)
+        private void ProcessMessage(int messageId, string msg)
         {
             NetworkMessage networkMessage = JsonConvert.DeserializeObject<NetworkMessage>(msg);
+            networkMessage.Type = (MessageType)messageId;
 
             switch (networkMessage.Type)
             {

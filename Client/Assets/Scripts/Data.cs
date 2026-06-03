@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace Server
 {
@@ -7,9 +8,12 @@ namespace Server
     [Serializable]
     public class Vector2
     {
+        [JsonProperty("x")]
         public float X { get; private set; }
+        [JsonProperty("y")]
         public float Y { get; private set; }
         
+        [JsonConstructor]
         public Vector2(float x, float y)
         {
             X = x;

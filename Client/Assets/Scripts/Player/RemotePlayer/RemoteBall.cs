@@ -39,14 +39,13 @@ public class RemoteBall : MonoBehaviour, IEatable
     // 设置球Id
     public void SetBallId(string ballId)
     {
-        if (string.IsNullOrEmpty(BallId))
+        if (string.IsNullOrEmpty(ballId))
         {
             Debug.Log($"问题Id");
+            return;
         }
-        else
-        {
-            BallId = ballId;
-        }
+
+        BallId = ballId;
     }
     
     // 设置玩家Id

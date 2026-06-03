@@ -97,6 +97,8 @@ inline void from_json(const nlohmann::json& j, Vector2& value)
 	value = Vector2{};
 	JsonUtil::GetIfPresent(j, "x", value.x);
 	JsonUtil::GetIfPresent(j, "y", value.y);
+	JsonUtil::GetIfPresent(j, "X", value.x);
+	JsonUtil::GetIfPresent(j, "Y", value.y);
 }
 
 inline void to_json(nlohmann::json& j, const FoodData& value)
