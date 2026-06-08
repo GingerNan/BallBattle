@@ -100,11 +100,11 @@ void CServer::BroadcastPlayerPosition(std::shared_ptr<CSession> session)
 	postion.TotalMass = player->GetTotalMass();
 
 	NetworkMessage message;
-	message.Type = MSG_SEND_POSITION;
+	message.Type = MSG_SYNC_POSITIONS;
 	message.PlayerPosition = postion;
 
 	nlohmann::json json_msg = message;
-	BroadcastToOthers(MSG_SEND_POSITION, json_msg.dump(), session);
+	BroadcastToOthers(MSG_SYNC_POSITIONS, json_msg.dump(), session);
 }
 
 void CServer::BroadcastFoodRemove(std::string foodId)
