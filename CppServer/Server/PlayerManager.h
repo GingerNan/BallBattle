@@ -29,6 +29,8 @@ public:
 
 	void OnDayChanged();
 
+	void OnWeekChanged();
+
 	std::shared_ptr<Player> FindPlayerById(std::string playerId);
 
 	// 获取所有玩家的位置和状态

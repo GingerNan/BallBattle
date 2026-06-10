@@ -38,6 +38,24 @@ std::string GetLocalDayKey()
 	return oss.str();
 }
 
+std::string GetLocalWeekKey()
+{
+	auto now = std::chrono::system_clock::now();
+	std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+	std::tm local_time = ToLocalTime(now_time);
+	const int days_since_monday = (local_time.tm_wday + 6) % 7;
+
+	local_time.tm_sec = 0;
+	local_time.tm_min = 0;
+	local_time.tm_hour = 0;
+	local_time.tm_mday -= days_since_monday;
+	std::mktime(&local_time);
+
+	std::ostringstream oss;
+	oss << std::put_time(&local_time, "%Y%m%d");
+	return oss.str();
+}
+
 std::chrono::system_clock::time_point GetNextLocalMidnight()
 {
 	auto now = std::chrono::system_clock::now();
@@ -62,6 +80,7 @@ CServer::CServer(boost::asio::io_context& ioc, unsigned short port)
 	std::cout << "Server Start! listen port: " << port << std::endl;
 	FoodManager::GetInstance().InitializeFoods();
 	_current_day_key = GetLocalDayKey();
+	_current_week_key = GetLocalWeekKey();
 	ScheduleNextDayChange();
 	StartAccpet();
 }
@@ -244,6 +263,7 @@ void CServer::CheckDayChange()
 	const std::string old_day = _current_day_key;
 	_current_day_key = day_key;
 	HandleDayChanged(old_day, day_key);
+	CheckWeekChange();
 }
 
 void CServer::HandleDayChanged(const std::string& old_day, const std::string& new_day)
@@ -251,6 +271,26 @@ void CServer::HandleDayChanged(const std::string& old_day, const std::string& ne
 	std::cout << "Server day changed from " << old_day << " to " << new_day << std::endl;
 	FoodManager::GetInstance().OnDayChanged();
 	PlayerManager::GetInstance().OnDayChanged();
+}
+
+void CServer::CheckWeekChange()
+{
+	const std::string week_key = GetLocalWeekKey();
+	if (week_key == _current_week_key)
+	{
+		return;
+	}
+
+	const std::string old_week = _current_week_key;
+	_current_week_key = week_key;
+	HandleWeekChanged(old_week, week_key);
+}
+
+void CServer::HandleWeekChanged(const std::string& old_week, const std::string& new_week)
+{
+	std::cout << "Server week changed from " << old_week << " to " << new_week << std::endl;
+	FoodManager::GetInstance().OnWeekChanged();
+	PlayerManager::GetInstance().OnWeekChanged();
 }
 
 void CServer::StartAccpet()

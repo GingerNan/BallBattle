@@ -54,12 +54,17 @@ private:
 
 	void HandleDayChanged(const std::string& old_day, const std::string& new_day);
 
+	void CheckWeekChange();
+
+	void HandleWeekChanged(const std::string& old_week, const std::string& new_week);
+
 private:
 	boost::asio::io_context& _ioc;
 	boost::asio::ip::tcp::acceptor _acceptor;
 	boost::asio::system_timer _day_change_timer;
 	unsigned short _port;
 	std::string _current_day_key;
+	std::string _current_week_key;
 	std::map<std::string, std::shared_ptr<CSession>> _sessions;
 };
 

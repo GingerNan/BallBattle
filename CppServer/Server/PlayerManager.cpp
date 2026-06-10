@@ -37,6 +37,11 @@ void PlayerManager::OnDayChanged()
 	std::cout << "PlayerManager day changed, no daily player state to reset." << std::endl;
 }
 
+void PlayerManager::OnWeekChanged()
+{
+	std::cout << "PlayerManager week changed, no weekly player state to reset." << std::endl;
+}
+
 std::shared_ptr<Player> PlayerManager::FindPlayerById(std::string playerId)
 {
 	auto it = _players.find(playerId);

@@ -22,6 +22,8 @@ public:
 public:
 	void OnDayChanged();
 
+	void OnWeekChanged();
+
 public:
 	// 初始化生成所有食物
 	void InitializeFoods();
