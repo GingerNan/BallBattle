@@ -2,12 +2,14 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <boost/asio/system_timer.hpp>
 #include "CSession.h"
 
 class CServer
 {
 public:
 	CServer(boost::asio::io_context& ioc, unsigned short port);
+	~CServer();
 
 	void ClearSession(std::string uuid);
 public:
@@ -46,10 +48,18 @@ private:
 
 	void HandleAccept(std::shared_ptr<CSession> newSeesion, const boost::system::error_code& err);
 
+	void ScheduleNextDayChange();
+
+	void CheckDayChange();
+
+	void HandleDayChanged(const std::string& old_day, const std::string& new_day);
+
 private:
 	boost::asio::io_context& _ioc;
 	boost::asio::ip::tcp::acceptor _acceptor;
+	boost::asio::system_timer _day_change_timer;
 	unsigned short _port;
+	std::string _current_day_key;
 	std::map<std::string, std::shared_ptr<CSession>> _sessions;
 };
 

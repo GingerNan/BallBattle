@@ -20,6 +20,9 @@ public:
 	FoodManager& operator=(const FoodManager&) = delete;
 
 public:
+	void OnDayChanged();
+
+public:
 	// 初始化生成所有食物
 	void InitializeFoods();
 

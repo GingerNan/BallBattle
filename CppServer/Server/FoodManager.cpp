@@ -5,6 +5,11 @@
 
 FoodManager::FoodManager() {}
 
+void FoodManager::OnDayChanged()
+{
+	std::cout << "FoodManager day changed, no daily food state to reset." << std::endl;
+}
+
 void FoodManager::InitializeFoods()
 {
 	_foods.clear();

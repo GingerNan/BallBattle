@@ -7,15 +7,68 @@
 
 #include <vector>
 #include <iostream>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+#include <boost/asio/error.hpp>
 #include <boost/uuid.hpp>
 
+namespace
+{
+std::tm ToLocalTime(std::time_t time)
+{
+	std::tm local_time{};
+#if defined(_WIN32)
+	localtime_s(&local_time, &time);
+#else
+	localtime_r(&time, &local_time);
+#endif
+	return local_time;
+}
+
+std::string GetLocalDayKey()
+{
+	auto now = std::chrono::system_clock::now();
+	std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+	std::tm local_time = ToLocalTime(now_time);
+
+	std::ostringstream oss;
+	oss << std::put_time(&local_time, "%Y%m%d");
+	return oss.str();
+}
+
+std::chrono::system_clock::time_point GetNextLocalMidnight()
+{
+	auto now = std::chrono::system_clock::now();
+	std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+	std::tm local_time = ToLocalTime(now_time);
+
+	local_time.tm_sec = 0;
+	local_time.tm_min = 0;
+	local_time.tm_hour = 0;
+	local_time.tm_mday += 1;
+
+	return std::chrono::system_clock::from_time_t(std::mktime(&local_time));
+}
+}
+
 CServer::CServer(boost::asio::io_context& ioc, unsigned short port)
-	: _ioc(ioc), _port(port), 
-	_acceptor(ioc, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
+	: _ioc(ioc),
+	_acceptor(ioc, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
+	_day_change_timer(ioc),
+	_port(port)
 {
 	std::cout << "Server Start! listen port: " << port << std::endl;
 	FoodManager::GetInstance().InitializeFoods();
+	_current_day_key = GetLocalDayKey();
+	ScheduleNextDayChange();
 	StartAccpet();
+}
+
+CServer::~CServer()
+{
+	_day_change_timer.cancel();
 }
 
 void CServer::ClearSession(std::string uuid)
@@ -30,20 +83,15 @@ void CServer::HandlePlayerPosition(std::shared_ptr<CSession> session)
 
 void CServer::HandleRemoveFood(std::string foodId, std::shared_ptr<CSession> session)
 {
-	if (!FoodManager::GetInstance().IsFoodExist(foodId))
+	auto newFood = FoodManager::GetInstance().RemoveFood(foodId);
+	if (!newFood)
 	{
 		std::cout << "Food " << foodId << " not fund!" << std::endl;
 		return;
 	}
 
-	auto newFood = FoodManager::GetInstance().RemoveFood(foodId);
-
 	BroadcastFoodRemove(foodId);
-
-	if (newFood)
-	{
-		BroadcastFoodGenerated(newFood);
-	}
+	BroadcastFoodGenerated(newFood);
 }
 
 void CServer::HandlePlayerVomit(VomitData vomitData)
@@ -162,6 +210,47 @@ void CServer::Broadcast(short msg_id, std::string msg)
 
 		session->Send(msg_id, msg);
 	}
+}
+
+void CServer::ScheduleNextDayChange()
+{
+	_day_change_timer.expires_at(GetNextLocalMidnight());
+	_day_change_timer.async_wait([this](const boost::system::error_code& err) {
+		if (err == boost::asio::error::operation_aborted)
+		{
+			return;
+		}
+
+		if (err)
+		{
+			std::cout << "Day change timer error: " << err.message() << std::endl;
+			ScheduleNextDayChange();
+			return;
+		}
+
+		CheckDayChange();
+		ScheduleNextDayChange();
+		});
+}
+
+void CServer::CheckDayChange()
+{
+	const std::string day_key = GetLocalDayKey();
+	if (day_key == _current_day_key)
+	{
+		return;
+	}
+
+	const std::string old_day = _current_day_key;
+	_current_day_key = day_key;
+	HandleDayChanged(old_day, day_key);
+}
+
+void CServer::HandleDayChanged(const std::string& old_day, const std::string& new_day)
+{
+	std::cout << "Server day changed from " << old_day << " to " << new_day << std::endl;
+	FoodManager::GetInstance().OnDayChanged();
+	PlayerManager::GetInstance().OnDayChanged();
 }
 
 void CServer::StartAccpet()
