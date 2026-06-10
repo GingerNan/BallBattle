@@ -112,6 +112,7 @@ void CServer::BroadcastFoodRemove(std::string foodId)
 	NetworkMessage msg;
 	msg.Type = MSG_REMOVE_FOOD;
 	msg.FoodId = foodId;
+	msg.Food.FoodId = foodId;
 
 	nlohmann::json json_msg = msg;
 	Broadcast(MSG_REMOVE_FOOD, json_msg.dump());

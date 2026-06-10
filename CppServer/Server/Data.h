@@ -180,17 +180,66 @@ inline void from_json(const nlohmann::json& j, PlayerPostionData& value)
 inline void to_json(nlohmann::json& j, const NetworkMessage& value)
 {
 	j = nlohmann::json{
-		{"Type", static_cast<int>(value.Type)},
-		{"PlayerId", value.PlayerId},
-		{"Position", value.Position},
-		{"Data", value.Data},
-		{"PlayerPositions", value.PlayerPositions},
-		{"PlayerPosition", value.PlayerPosition},
-		{"Foods", value.Foods},
-		{"Food", value.Food},
-		{"FoodId", value.FoodId},
-		{"VomitData", value.VomitData}
+		{"Type", static_cast<int>(value.Type)}
 	};
+
+	switch (value.Type)
+	{
+	case MSG_PLAYER_JOIN:
+	case MSG_GIVE_PLAYER_ID:
+		j["PlayerId"] = value.PlayerId;
+		break;
+	case MSG_SEND_POSITION:
+		j["PlayerId"] = value.PlayerId;
+		j["Position"] = value.Position;
+		if (!value.PlayerPosition.PlayerId.empty())
+		{
+			j["PlayerPosition"] = value.PlayerPosition;
+		}
+		break;
+	case MSG_SYNC_POSITIONS:
+		if (!value.PlayerPosition.PlayerId.empty())
+		{
+			j["PlayerPosition"] = value.PlayerPosition;
+		}
+		else
+		{
+			j["PlayerPositions"] = value.PlayerPositions;
+		}
+		break;
+	case MSG_GENERATE_FOOD:
+		j["Food"] = value.Food;
+		break;
+	case MSG_REMOVE_FOOD:
+		j["FoodId"] = value.FoodId;
+		if (!value.Food.FoodId.empty())
+		{
+			j["Food"] = value.Food;
+		}
+		else if (!value.FoodId.empty())
+		{
+			FoodData food;
+			food.FoodId = value.FoodId;
+			j["Food"] = food;
+		}
+		break;
+	case MSG_SYNC_FOODS:
+		j["Foods"] = value.Foods;
+		break;
+	case MSG_PLAYER_VOMIT:
+		j["VomitData"] = value.VomitData;
+		break;
+	default:
+		if (!value.PlayerId.empty())
+		{
+			j["PlayerId"] = value.PlayerId;
+		}
+		if (!value.Data.empty())
+		{
+			j["Data"] = value.Data;
+		}
+		break;
+	}
 }
 
 inline void from_json(const nlohmann::json& j, NetworkMessage& value)
